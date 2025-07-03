@@ -1,0 +1,2 @@
+# openai-embeddings-model
+OpenAIEmbeddingsModel
