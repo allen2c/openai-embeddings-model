@@ -34,7 +34,7 @@ class ModelResponse(pydantic.BaseModel):
         return np.array(embedding_array)
 
     def to_python(self) -> list[list[float]]:
-        return [list(embedding) for embedding in self.to_numpy()]
+        return [embedding.tolist() for embedding in self.to_numpy()]
 
 
 class OpenAIEmbeddingsModel:
@@ -72,7 +72,7 @@ class OpenAIEmbeddingsModel:
 
         return ModelResponse.model_validate(
             {
-                "output": [embedding for embedding in response.data[0].embedding],
+                "output": [item.embedding for item in response.data],
                 "usage": Usage(
                     input_tokens=response.usage.prompt_tokens,
                     total_tokens=response.usage.total_tokens,
