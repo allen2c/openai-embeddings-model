@@ -1,4 +1,5 @@
 import base64
+import functools
 import typing
 
 import numpy as np
@@ -25,16 +26,35 @@ class ModelResponse(pydantic.BaseModel):
     output: list[typing.Text]
     usage: Usage
 
+    @functools.cached_property
+    def _decoded_bytes(self) -> memoryview:
+        """
+        Lazily decode *all* embeddings in one pass and expose them
+        as a zero-copy memoryview to avoid duplicating data.
+        """
+        return memoryview(b"".join(base64.b64decode(s) for s in self.output))
+
+    @functools.cached_property
+    def _ndarray(self) -> np.ndarray:
+        """
+        Materialize the NumPy array once and cache it.  Later calls to
+        `to_numpy()` or `to_python()` return the cached view.
+        """
+        if not self.output:  # Handle empty response.
+            return np.empty((0, 0), dtype=np.float32)
+
+        # Each embedding has the same dimensionality; derive it from the first.
+        dim = len(base64.b64decode(self.output[0])) // 4  # 4 bytes per float32
+        arr = np.frombuffer(self._decoded_bytes, dtype=np.float32)
+        return arr.reshape(len(self.output), dim)
+
     def to_numpy(self) -> np.typing.NDArray[np.float32]:
-        decoded_bytes = [base64.b64decode(s) for s in self.output]
-        embedding_array = [
-            np.frombuffer(decoded_byte, dtype=np.float32)
-            for decoded_byte in decoded_bytes
-        ]
-        return np.array(embedding_array)
+        """Return embeddings as an (n, d) float32 ndarray (cached)."""
+        return self._ndarray
 
     def to_python(self) -> list[list[float]]:
-        return [embedding.tolist() for embedding in self.to_numpy()]
+        """Return embeddings as ordinary Python lists (cached)."""
+        return self._ndarray.tolist()
 
 
 class OpenAIEmbeddingsModel:
