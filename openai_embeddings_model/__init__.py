@@ -1,5 +1,7 @@
+import base64
 import typing
 
+import numpy as np
 import openai
 import openai.types.create_embedding_response as openai_emb_resp
 import pydantic
@@ -23,6 +25,17 @@ class ModelResponse(pydantic.BaseModel):
     output: list[typing.Text]
     usage: Usage
 
+    def to_numpy(self) -> np.typing.NDArray[np.float32]:
+        decoded_bytes = [base64.b64decode(s) for s in self.output]
+        embedding_array = [
+            np.frombuffer(decoded_byte, dtype=np.float32)
+            for decoded_byte in decoded_bytes
+        ]
+        return np.array(embedding_array)
+
+    def to_python(self) -> list[list[float]]:
+        return [list(embedding) for embedding in self.to_numpy()]
+
 
 class OpenAIEmbeddingsModel:
     def __init__(
@@ -37,7 +50,7 @@ class OpenAIEmbeddingsModel:
         self,
         input: str | typing.List[str],
         model_settings: ModelSettings,
-    ):
+    ) -> ModelResponse:
         """
         Get embeddings for the input text.
         """
@@ -57,4 +70,12 @@ class OpenAIEmbeddingsModel:
             )
         )
 
-        return response
+        return ModelResponse.model_validate(
+            {
+                "output": [embedding for embedding in response.data[0].embedding],
+                "usage": Usage(
+                    input_tokens=response.usage.prompt_tokens,
+                    total_tokens=response.usage.total_tokens,
+                ),
+            }
+        )
