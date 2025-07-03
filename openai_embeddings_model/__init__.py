@@ -1,13 +1,13 @@
 import base64
 import functools
+import hashlib
 import typing
 
+import diskcache
 import numpy as np
 import openai
-import hashlib
 import openai.types.create_embedding_response as openai_emb_resp
 import pydantic
-import diskcache
 
 from .embedding_model import EmbeddingModel
 
@@ -95,8 +95,9 @@ class OpenAIEmbeddingsModel:
         else:
             _missing_idx = list(range(len(_input)))
 
-        response: "openai_emb_resp.CreateEmbeddingResponse" = (
-            self._client.embeddings.create(
+        response: openai_emb_resp.CreateEmbeddingResponse | None = None
+        if len(_missing_idx) > 0:
+            response = self._client.embeddings.create(
                 input=[_input[i] for i in _missing_idx],
                 model=self.model,
                 dimensions=(
@@ -106,7 +107,6 @@ class OpenAIEmbeddingsModel:
                 ),
                 encoding_format="base64",
             )
-        )
 
         for i, item_idx in enumerate(_missing_idx):
             _embedding: str = response.data[i].embedding  # type: ignore
@@ -121,8 +121,8 @@ class OpenAIEmbeddingsModel:
             {
                 "output": _output,
                 "usage": Usage(
-                    input_tokens=response.usage.prompt_tokens,
-                    total_tokens=response.usage.total_tokens,
+                    input_tokens=response.usage.prompt_tokens if response else 0,
+                    total_tokens=response.usage.total_tokens if response else 0,
                 ),
             }
         )
