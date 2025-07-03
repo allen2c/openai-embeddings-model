@@ -14,10 +14,14 @@ class ModelSettings(pydantic.BaseModel):
     timeout: float | None = None
 
 
+class Usage(pydantic.BaseModel):
+    input_tokens: int = 0
+    total_tokens: int = 0
+
+
 class ModelResponse(pydantic.BaseModel):
-    # output: list[TResponseOutputItem]
-    # usage: Usage
-    response_id: str | None
+    output: list[typing.Text]
+    usage: Usage
 
 
 class OpenAIEmbeddingsModel:
@@ -31,23 +35,18 @@ class OpenAIEmbeddingsModel:
 
     def get_embeddings(
         self,
-        input: (
-            str
-            | typing.List[str]
-            | typing.Iterable[int]
-            | typing.Iterable[typing.Iterable[int]]
-        ),
+        input: str | typing.List[str],
         model_settings: ModelSettings,
     ):
         """
         Get embeddings for the input text.
         """
 
-        input = [input] if isinstance(input, str) else input
+        _input = [input] if isinstance(input, str) else input
 
         response: "openai_emb_resp.CreateEmbeddingResponse" = (
             self._client.embeddings.create(
-                input=input,
+                input=_input,
                 model=self.model,
                 dimensions=(
                     openai.NOT_GIVEN
