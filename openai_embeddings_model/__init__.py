@@ -4,8 +4,10 @@ import typing
 
 import numpy as np
 import openai
+import hashlib
 import openai.types.create_embedding_response as openai_emb_resp
 import pydantic
+import diskcache
 
 from .embedding_model import EmbeddingModel
 
@@ -62,9 +64,11 @@ class OpenAIEmbeddingsModel:
         self,
         model: str | EmbeddingModel,
         openai_client: openai.OpenAI | openai.AzureOpenAI,
+        cache: diskcache.Cache | None = None,
     ) -> None:
         self.model = model
         self._client = openai_client
+        self._cache = cache
 
     def get_embeddings(
         self,
@@ -77,9 +81,23 @@ class OpenAIEmbeddingsModel:
 
         _input = [input] if isinstance(input, str) else input
 
+        _output: typing.List[typing.Text | None] = [None] * len(_input)
+        _missing_idx: typing.List[int] = []
+        if self._cache is not None:
+            for i, item in enumerate(_input):
+                _cached_item = self._cache.get(
+                    hashlib.sha256(item.encode()).hexdigest()
+                )
+                if _cached_item is None:
+                    _missing_idx.append(i)
+                else:
+                    _output[i] = _cached_item  # type: ignore
+        else:
+            _missing_idx = list(range(len(_input)))
+
         response: "openai_emb_resp.CreateEmbeddingResponse" = (
             self._client.embeddings.create(
-                input=_input,
+                input=[_input[i] for i in _missing_idx],
                 model=self.model,
                 dimensions=(
                     openai.NOT_GIVEN
@@ -90,12 +108,25 @@ class OpenAIEmbeddingsModel:
             )
         )
 
+        for i, item_idx in enumerate(_missing_idx):
+            _embedding: str = response.data[i].embedding  # type: ignore
+            if self._cache is not None:
+                self._cache.set(
+                    hashlib.sha256(_input[item_idx].encode()).hexdigest(),
+                    _embedding,
+                )
+            _output[item_idx] = _embedding
+
         return ModelResponse.model_validate(
             {
-                "output": [item.embedding for item in response.data],
+                "output": _output,
                 "usage": Usage(
                     input_tokens=response.usage.prompt_tokens,
                     total_tokens=response.usage.total_tokens,
                 ),
             }
         )
+
+
+def get_default_cache() -> diskcache.Cache:
+    return diskcache.Cache(directory="./.cache/embeddings.cache")
