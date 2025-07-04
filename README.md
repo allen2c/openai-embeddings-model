@@ -1,6 +1,6 @@
 # OpenAI Embeddings Model
 
-A high-performance, thread-safe Python library for generating embeddings using OpenAI's embedding models with intelligent caching and batch processing.
+A high-performance, thread-safe Python library for generating embeddings using OpenAI's embedding models and other OpenAI-compatible APIs with intelligent caching and batch processing.
 
 ## Features
 
@@ -15,9 +15,17 @@ A high-performance, thread-safe Python library for generating embeddings using O
 
 ## Supported Models
 
+### OpenAI Official Models
+
 - `text-embedding-3-small` (up to 1536 dimensions)
 - `text-embedding-3-large` (up to 3072 dimensions)
 - `text-embedding-ada-002` (1536 dimensions, no custom dimensions)
+
+### OpenAI-Compatible APIs
+
+- Any embedding model accessible through OpenAI-compatible endpoints
+- Self-hosted solutions like Ollama, LocalAI, etc.
+- Custom embedding services with OpenAI-compatible interfaces
 
 ## Installation
 
@@ -166,6 +174,34 @@ client = AzureOpenAI(
 
 model = OpenAIEmbeddingsModel(
     model="text-embedding-3-small",
+    openai_client=client
+)
+```
+
+### Self-Hosted and OpenAI-Compatible APIs
+
+```python
+import openai
+
+# Ollama (self-hosted)
+client = openai.OpenAI(
+    base_url="http://localhost:11434/v1",
+    api_key="ollama"  # Ollama doesn't require a real API key
+)
+
+model = OpenAIEmbeddingsModel(
+    model="nomic-embed-text",  # Or any model available in Ollama
+    openai_client=client
+)
+
+# Other OpenAI-compatible endpoints
+client = openai.OpenAI(
+    base_url="https://your-custom-endpoint.com/v1",
+    api_key="your-api-key"
+)
+
+model = OpenAIEmbeddingsModel(
+    model="your-custom-model",
     openai_client=client
 )
 ```
