@@ -62,6 +62,12 @@ def get_default_cache() -> diskcache.Cache:
     return diskcache.Cache(directory="./.cache/embeddings.cache")
 
 
+def convert_float_list_to_base64(float_list: typing.List[float]) -> str:
+    """Convert a list of python floats to base64-encoded numpy float32 array."""
+    array = np.array(float_list, dtype=np.float32)
+    return base64.b64encode(array.tobytes()).decode("utf-8")
+
+
 class EmbeddingModelType(enum.StrEnum):
     """Supported embedding model types with their constraints."""
 
@@ -195,7 +201,7 @@ class OpenAIEmbeddingsModel:
         Raises:
             RuntimeError: If API call fails
         """
-        embeddings = []
+        embeddings: typing.List[str] = []
         total_input_tokens = 0
         total_tokens = 0
         total_batches = (len(texts) + MAX_BATCH_SIZE - 1) // MAX_BATCH_SIZE
@@ -221,7 +227,16 @@ class OpenAIEmbeddingsModel:
                     encoding_format="base64",
                     timeout=model_settings.timeout,
                 )
-                embeddings.extend([data.embedding for data in response.data])
+                embeddings.extend(
+                    [
+                        (
+                            data.embedding
+                            if isinstance(data.embedding, str)
+                            else convert_float_list_to_base64(data.embedding)
+                        )
+                        for data in response.data
+                    ]
+                )
 
                 # Accumulate actual token usage from API response
                 total_input_tokens += response.usage.prompt_tokens
@@ -461,7 +476,14 @@ class AsyncOpenAIEmbeddingsModel:
                         encoding_format="base64",
                         timeout=model_settings.timeout,
                     )
-                    batch_embeddings = [str(data.embedding) for data in response.data]
+                    batch_embeddings = [
+                        (
+                            data.embedding
+                            if isinstance(data.embedding, str)
+                            else convert_float_list_to_base64(data.embedding)
+                        )
+                        for data in response.data
+                    ]
                     batch_usage = Usage(
                         input_tokens=response.usage.prompt_tokens,
                         total_tokens=response.usage.total_tokens,
