@@ -34,6 +34,27 @@ def generate_cache_key(
     return f"{model or 'unknown'}:{dimensions or 'default'}:{hash_text}"
 
 
+def validate_input(input: str | typing.List[str]) -> typing.List[str]:
+    """Validate and normalize input, converting strings to lists.
+
+    Raises ValueError for empty inputs, TypeError for invalid types.
+    """
+    if isinstance(input, str):
+        if not input.strip():
+            raise ValueError("Input string cannot be empty")
+        return [input]
+    elif isinstance(input, list):
+        if not input:
+            raise ValueError("Input list cannot be empty")
+        if not all(isinstance(item, str) for item in input):
+            raise TypeError("All input items must be strings")
+        if not all(item.strip() for item in input):
+            raise ValueError("All input items must be non-empty strings")
+        return input
+    else:
+        raise TypeError(f"Input must be str or List[str], got {type(input)}")
+
+
 class EmbeddingModelType(enum.StrEnum):
     """Supported embedding model types with their constraints."""
 
@@ -148,35 +169,6 @@ class OpenAIEmbeddingsModel:
         self._model_str = str(model)
         logger.info(f"Initialized OpenAIEmbeddingsModel with model: {self._model_str}")
 
-    def _validate_input(self, input: str | typing.List[str]) -> typing.List[str]:
-        """
-        Validate and normalize input.
-
-        Args:
-            input: Single string or list of strings
-
-        Returns:
-            Normalized list of strings
-
-        Raises:
-            ValueError: If input is empty or contains invalid items
-            TypeError: If input is not str or List[str]
-        """
-        if isinstance(input, str):
-            if not input.strip():
-                raise ValueError("Input string cannot be empty")
-            return [input]
-        elif isinstance(input, list):
-            if not input:
-                raise ValueError("Input list cannot be empty")
-            if not all(isinstance(item, str) for item in input):
-                raise TypeError("All input items must be strings")
-            if not all(item.strip() for item in input):
-                raise ValueError("All input items must be non-empty strings")
-            return input
-        else:
-            raise TypeError(f"Input must be str or List[str], got {type(input)}")
-
     def _batch_api_calls(
         self,
         texts: typing.List[str],
@@ -269,7 +261,7 @@ class OpenAIEmbeddingsModel:
         start_time = time.time()
 
         # Validate input
-        _input = self._validate_input(input)
+        _input = validate_input(input)
 
         # Validate model settings
         model_settings.validate_for_model(self.model)
@@ -384,7 +376,7 @@ class OpenAIEmbeddingsModel:
             raise ValueError("chunk_size must be positive")
 
         # Validate all input first
-        validated_input = self._validate_input(input)
+        validated_input = validate_input(input)
 
         total_chunks = (len(validated_input) + chunk_size - 1) // chunk_size
         logger.info(
@@ -416,23 +408,6 @@ class AsyncOpenAIEmbeddingsModel:
         logger.info(
             f"Initialized AsyncOpenAIEmbeddingsModel with model: {self._model_str}"
         )
-
-    def _validate_input(self, input: str | typing.List[str]) -> typing.List[str]:
-        """Validate and normalize input (same as sync version)."""
-        if isinstance(input, str):
-            if not input.strip():
-                raise ValueError("Input string cannot be empty")
-            return [input]
-        elif isinstance(input, list):
-            if not input:
-                raise ValueError("Input list cannot be empty")
-            if not all(isinstance(item, str) for item in input):
-                raise TypeError("All input items must be strings")
-            if not all(item.strip() for item in input):
-                raise ValueError("All input items must be non-empty strings")
-            return input
-        else:
-            raise TypeError(f"Input must be str or List[str], got {type(input)}")
 
     async def _batch_api_calls(
         self,
@@ -528,7 +503,7 @@ class AsyncOpenAIEmbeddingsModel:
         start_time = time.time()
 
         # Validate input
-        _input = self._validate_input(input)
+        _input = validate_input(input)
 
         # Validate model settings
         model_settings.validate_for_model(self.model)
@@ -639,7 +614,7 @@ class AsyncOpenAIEmbeddingsModel:
             raise ValueError("chunk_size must be positive")
 
         # Validate all input first
-        validated_input = self._validate_input(input)
+        validated_input = validate_input(input)
 
         total_chunks = (len(validated_input) + chunk_size - 1) // chunk_size
         logger.info(
