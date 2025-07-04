@@ -529,7 +529,7 @@ class AsyncOpenAIEmbeddingsModel:
                     dimensions=model_settings.dimensions,
                     text=item,
                 )
-                cached_item = self._cache.get(cache_key)
+                cached_item = await asyncio.to_thread(self._cache.get, cache_key)
 
                 if cached_item is None:
                     _missing_idx.append(i)
@@ -573,7 +573,7 @@ class AsyncOpenAIEmbeddingsModel:
                             dimensions=model_settings.dimensions,
                             text=_input[missing_idx_pos],
                         )
-                        self._cache.set(cache_key, embedding)
+                        await asyncio.to_thread(self._cache.set, cache_key, embedding)
 
             except Exception as e:
                 logger.error(f"Failed to process embeddings: {str(e)}")
