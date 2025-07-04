@@ -24,6 +24,7 @@ MAX_BATCH_SIZE = 2048  # OpenAI's batch size limit
 MAX_INPUT_TOKENS = 8191  # Maximum tokens per input
 
 
+@functools.lru_cache(maxsize=MAX_BATCH_SIZE)
 def generate_cache_key(
     model: str | None = None, dimensions: int | None = None, text: str | None = None
 ) -> str:
