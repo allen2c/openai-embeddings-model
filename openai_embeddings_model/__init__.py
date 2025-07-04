@@ -55,6 +55,11 @@ def validate_input(input: str | typing.List[str]) -> typing.List[str]:
         raise TypeError(f"Input must be str or List[str], got {type(input)}")
 
 
+def get_default_cache() -> diskcache.Cache:
+    """Get default cache instance."""
+    return diskcache.Cache(directory="./.cache/embeddings.cache")
+
+
 class EmbeddingModelType(enum.StrEnum):
     """Supported embedding model types with their constraints."""
 
@@ -103,7 +108,7 @@ class ModelSettings(pydantic.BaseModel):
                     )
         except ValueError:
             # Unknown model type, skip validation
-            logger.warning(
+            logger.debug(
                 f"Unknown model type: {model_str}, skipping dimension validation"
             )
 
@@ -167,7 +172,7 @@ class OpenAIEmbeddingsModel:
 
         # Validate model
         self._model_str = str(model)
-        logger.info(f"Initialized OpenAIEmbeddingsModel with model: {self._model_str}")
+        logger.debug(f"Initialized OpenAIEmbeddingsModel with model: {self._model_str}")
 
     def _batch_api_calls(
         self,
@@ -266,7 +271,7 @@ class OpenAIEmbeddingsModel:
         # Validate model settings
         model_settings.validate_for_model(self.model)
 
-        logger.info(f"Processing {len(_input)} texts for embedding")
+        logger.debug(f"Processing {len(_input)} texts for embedding")
 
         # Initialize output and tracking
         _output: typing.List[typing.Text | None] = [None] * len(_input)
@@ -294,7 +299,7 @@ class OpenAIEmbeddingsModel:
         # Log cache statistics
         if self._cache is not None and _input:
             cache_hit_rate = cache_hits / len(_input)
-            logger.info(
+            logger.debug(
                 f"Cache hit rate: {cache_hit_rate:.2%}, "
                 f"Processing {len(_missing_idx)} new embeddings"
             )
@@ -379,7 +384,7 @@ class OpenAIEmbeddingsModel:
         validated_input = validate_input(input)
 
         total_chunks = (len(validated_input) + chunk_size - 1) // chunk_size
-        logger.info(
+        logger.debug(
             f"Processing {len(validated_input)} texts in {total_chunks} chunks "
             f"of size {chunk_size}"
         )
@@ -405,7 +410,7 @@ class AsyncOpenAIEmbeddingsModel:
 
         # Validate model
         self._model_str = str(model)
-        logger.info(
+        logger.debug(
             f"Initialized AsyncOpenAIEmbeddingsModel with model: {self._model_str}"
         )
 
@@ -508,7 +513,7 @@ class AsyncOpenAIEmbeddingsModel:
         # Validate model settings
         model_settings.validate_for_model(self.model)
 
-        logger.info(f"Processing {len(_input)} texts for embedding (async)")
+        logger.debug(f"Processing {len(_input)} texts for embedding (async)")
 
         # Initialize output and tracking
         _output: typing.List[typing.Text | None] = [None] * len(_input)
@@ -536,7 +541,7 @@ class AsyncOpenAIEmbeddingsModel:
         # Log cache statistics
         if self._cache is not None and _input:
             cache_hit_rate = cache_hits / len(_input)
-            logger.info(
+            logger.debug(
                 f"Cache hit rate: {cache_hit_rate:.2%}, "
                 f"Processing {len(_missing_idx)} new embeddings"
             )
@@ -617,7 +622,7 @@ class AsyncOpenAIEmbeddingsModel:
         validated_input = validate_input(input)
 
         total_chunks = (len(validated_input) + chunk_size - 1) // chunk_size
-        logger.info(
+        logger.debug(
             f"Processing {len(validated_input)} texts in {total_chunks} chunks "
             f"of size {chunk_size}"
         )
@@ -626,8 +631,3 @@ class AsyncOpenAIEmbeddingsModel:
             chunk = validated_input[i : i + chunk_size]
             logger.debug(f"Processing chunk {i // chunk_size + 1}/{total_chunks}")
             yield await self.get_embeddings(chunk, model_settings)
-
-
-def get_default_cache() -> diskcache.Cache:
-    """Get default cache instance."""
-    return diskcache.Cache(directory="./.cache/embeddings.cache")
