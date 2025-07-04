@@ -1,9 +1,10 @@
 import logging
 import sys
 import tempfile
-import pytest
-import openai
+
 import diskcache
+import openai
+import pytest
 
 logging.basicConfig(
     level=logging.DEBUG,

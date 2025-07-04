@@ -4,15 +4,14 @@ import enum
 import functools
 import hashlib
 import logging
+import pathlib
 import time
 import typing
 
 import diskcache
 import numpy as np
 import openai
-import pathlib
 import pydantic
-
 
 from .embedding_model import EmbeddingModel
 
