@@ -119,6 +119,7 @@ class Usage(pydantic.BaseModel):
 
     input_tokens: int = 0
     total_tokens: int = 0
+    cache_hits: int = 0
 
 
 class ModelResponse(pydantic.BaseModel):
@@ -179,7 +180,7 @@ class OpenAIEmbeddingsModel:
         self,
         texts: typing.List[str],
         model_settings: ModelSettings,
-    ) -> typing.List[str]:
+    ) -> typing.Tuple[typing.List[str], Usage]:
         """
         Process texts in batches to respect API limits.
 
@@ -188,12 +189,14 @@ class OpenAIEmbeddingsModel:
             model_settings: Model configuration
 
         Returns:
-            List of base64-encoded embeddings
+            Tuple of (List of base64-encoded embeddings, Usage statistics)
 
         Raises:
             RuntimeError: If API call fails
         """
         embeddings = []
+        total_input_tokens = 0
+        total_tokens = 0
         total_batches = (len(texts) + MAX_BATCH_SIZE - 1) // MAX_BATCH_SIZE
 
         for batch_idx in range(0, len(texts), MAX_BATCH_SIZE):
@@ -219,6 +222,10 @@ class OpenAIEmbeddingsModel:
                 )
                 embeddings.extend([data.embedding for data in response.data])
 
+                # Accumulate actual token usage from API response
+                total_input_tokens += response.usage.prompt_tokens
+                total_tokens += response.usage.total_tokens
+
             except openai.RateLimitError as e:
                 logger.error(f"Rate limit hit on batch {current_batch}: {str(e)}")
                 raise RuntimeError(
@@ -242,7 +249,10 @@ class OpenAIEmbeddingsModel:
                     f"{current_batch}/{total_batches}: {str(e)}"
                 ) from e
 
-        return embeddings
+        return embeddings, Usage(
+            input_tokens=total_input_tokens,
+            total_tokens=total_tokens,
+        )
 
     def get_embeddings(
         self,
@@ -313,17 +323,14 @@ class OpenAIEmbeddingsModel:
             missing_texts = [_input[i] for i in _missing_idx]
 
             try:
-                embeddings = self._batch_api_calls(missing_texts, model_settings)
+                embeddings, usage = self._batch_api_calls(missing_texts, model_settings)
 
-                # Calculate approximate token usage
-                # This is an estimation - actual tokens depend on tokenizer
-                input_tokens = sum(len(text.split()) * 1.3 for text in missing_texts)
-                total_tokens = input_tokens  # Embeddings don't have output tokens
+                # Use actual token counts from API response
+                input_tokens = usage.input_tokens
+                total_tokens = usage.total_tokens
 
                 # Store results and update cache
-                for idx, (missing_idx_pos, embedding) in enumerate(
-                    zip(_missing_idx, embeddings)
-                ):
+                for missing_idx_pos, embedding in zip(_missing_idx, embeddings):
                     _output[missing_idx_pos] = embedding
 
                     if self._cache is not None:
@@ -354,6 +361,7 @@ class OpenAIEmbeddingsModel:
                 "usage": Usage(
                     input_tokens=int(input_tokens),
                     total_tokens=int(total_tokens),
+                    cache_hits=int(cache_hits),
                 ),
             }
         )
@@ -419,9 +427,11 @@ class AsyncOpenAIEmbeddingsModel:
         self,
         texts: typing.List[str],
         model_settings: ModelSettings,
-    ) -> typing.List[str]:
+    ) -> typing.Tuple[typing.List[str], Usage]:
         """Async version of batch API calls."""
         embeddings = []
+        total_input_tokens = 0
+        total_tokens = 0
         total_batches = (len(texts) + MAX_BATCH_SIZE - 1) // MAX_BATCH_SIZE
 
         # Process batches concurrently with controlled concurrency
@@ -430,7 +440,7 @@ class AsyncOpenAIEmbeddingsModel:
 
         async def process_batch(
             batch_idx: int, batch: typing.List[str]
-        ) -> typing.List[str]:
+        ) -> typing.Tuple[typing.List[str], Usage]:
             async with semaphore:
                 current_batch = batch_idx // MAX_BATCH_SIZE + 1
                 logger.debug(
@@ -450,7 +460,12 @@ class AsyncOpenAIEmbeddingsModel:
                         encoding_format="base64",
                         timeout=model_settings.timeout,
                     )
-                    return [data.embedding for data in response.data]  # type: ignore
+                    batch_embeddings = [str(data.embedding) for data in response.data]
+                    batch_usage = Usage(
+                        input_tokens=response.usage.prompt_tokens,
+                        total_tokens=response.usage.total_tokens,
+                    )
+                    return batch_embeddings, batch_usage
 
                 except openai.RateLimitError as e:
                     logger.error(f"Rate limit hit on batch {current_batch}: {str(e)}")
@@ -485,11 +500,16 @@ class AsyncOpenAIEmbeddingsModel:
         # Execute all batches concurrently
         batch_results = await asyncio.gather(*tasks)
 
-        # Flatten results
-        for batch_embeddings in batch_results:
+        # Flatten results and accumulate usage
+        for batch_embeddings, batch_usage in batch_results:
             embeddings.extend(batch_embeddings)
+            total_input_tokens += batch_usage.input_tokens
+            total_tokens += batch_usage.total_tokens
 
-        return embeddings
+        return embeddings, Usage(
+            input_tokens=total_input_tokens,
+            total_tokens=total_tokens,
+        )
 
     async def get_embeddings(
         self,
@@ -555,16 +575,16 @@ class AsyncOpenAIEmbeddingsModel:
             missing_texts = [_input[i] for i in _missing_idx]
 
             try:
-                embeddings = await self._batch_api_calls(missing_texts, model_settings)
+                embeddings, usage = await self._batch_api_calls(
+                    missing_texts, model_settings
+                )
 
-                # Calculate approximate token usage
-                input_tokens = sum(len(text.split()) * 1.3 for text in missing_texts)
-                total_tokens = input_tokens
+                # Use actual token counts from API response
+                input_tokens = usage.input_tokens
+                total_tokens = usage.total_tokens
 
                 # Store results and update cache
-                for idx, (missing_idx_pos, embedding) in enumerate(
-                    zip(_missing_idx, embeddings)
-                ):
+                for missing_idx_pos, embedding in zip(_missing_idx, embeddings):
                     _output[missing_idx_pos] = embedding
 
                     if self._cache is not None:
@@ -595,6 +615,7 @@ class AsyncOpenAIEmbeddingsModel:
                 "usage": Usage(
                     input_tokens=int(input_tokens),
                     total_tokens=int(total_tokens),
+                    cache_hits=int(cache_hits),
                 ),
             }
         )
