@@ -6,10 +6,11 @@ license = { text = "MIT" }
 name = "openai-embeddings-model"
 readme = "README.md"
 requires-python = ">=3.11,<4"
-version = "0.1.0"
+version = "0.2.0"
 
 [tool.poetry.group.dev.dependencies]
 black = { extras = ["jupyter"], version = "*" }
+faker = "*"
 isort = "*"
 poetry-plugin-export = "*"
 pytest = "^8"

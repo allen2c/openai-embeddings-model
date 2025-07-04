@@ -10,12 +10,14 @@ import typing
 import diskcache
 import numpy as np
 import openai
+import pathlib
 import pydantic
-from openai import AsyncOpenAI, AzureOpenAI, OpenAI
+
 
 from .embedding_model import EmbeddingModel
 
 __all__ = ["ModelSettings", "OpenAIEmbeddingsModel", "AsyncOpenAIEmbeddingsModel"]
+__version__ = pathlib.Path(__file__).parent.joinpath("VERSION").read_text().strip()
 
 logger = logging.getLogger(__name__)
 
@@ -165,7 +167,7 @@ class OpenAIEmbeddingsModel:
     def __init__(
         self,
         model: str | EmbeddingModel,
-        openai_client: OpenAI | AzureOpenAI,
+        openai_client: openai.OpenAI | openai.AzureOpenAI,
         cache: diskcache.Cache | None = None,
     ) -> None:
         self.model = model
@@ -410,7 +412,7 @@ class AsyncOpenAIEmbeddingsModel:
     def __init__(
         self,
         model: str | EmbeddingModel,
-        openai_client: AsyncOpenAI,
+        openai_client: openai.AsyncOpenAI | openai.AsyncAzureOpenAI,
         cache: diskcache.Cache | None = None,
     ) -> None:
         self.model = model
