@@ -12,6 +12,7 @@ import diskcache
 import numpy as np
 import openai
 import pydantic
+import tiktoken
 
 from .embedding_model import EmbeddingModel
 
@@ -23,13 +24,17 @@ logger = logging.getLogger(__name__)
 # Constants
 MAX_BATCH_SIZE = 2048  # OpenAI's batch size limit
 MAX_INPUT_TOKENS = 8191  # Maximum tokens per input
+MAX_TOKENS_A_REQUEST = 300_000  # Maximum tokens per request
 
 
 @functools.lru_cache(maxsize=MAX_BATCH_SIZE)
 def generate_cache_key(
     model: str | None = None, dimensions: int | None = None, text: str | None = None
 ) -> str:
-    """Generate a cache key."""
+    """Generate a unique cache key for embedding storage.
+
+    Combines model name, dimensions, and text hash to create a unique identifier.
+    """
     if text is None:
         raise ValueError("text is required")
     hash_text = hashlib.sha256(text.encode()).hexdigest()
@@ -58,14 +63,43 @@ def validate_input(input: str | typing.List[str]) -> typing.List[str]:
 
 
 def get_default_cache() -> diskcache.Cache:
-    """Get default cache instance."""
+    """Get the default disk cache instance for embedding storage.
+
+    Creates a cache directory at './.cache/embeddings.cache' if it doesn't exist.
+    """
     return diskcache.Cache(directory="./.cache/embeddings.cache")
 
 
-def convert_float_list_to_base64(float_list: typing.List[float]) -> str:
+def py_float_list_to_b64_np32_array(float_list: typing.List[float]) -> str:
     """Convert a list of python floats to base64-encoded numpy float32 array."""
     array = np.array(float_list, dtype=np.float32)
     return base64.b64encode(array.tobytes()).decode("utf-8")
+
+
+def b64_np32_array_to_py_float_list(b64_np32_array: str) -> typing.List[float]:
+    """Convert a base64-encoded numpy float32 array to a list of python floats."""
+    return np.frombuffer(base64.b64decode(b64_np32_array), dtype=np.float32).tolist()
+
+
+def count_tokens(text: str, encoding: tiktoken.Encoding) -> int:
+    """Count the number of tokens in a text using a given encoding."""
+    return len(encoding.encode(text))
+
+
+def count_tokens_in_batch(
+    texts: typing.List[str], encoding: tiktoken.Encoding
+) -> typing.List[int]:
+    """Count the number of tokens in a batch of texts using a given encoding."""
+    token_sequences = encoding.encode_batch(texts)
+    return [len(tokens) for tokens in token_sequences]
+
+
+def truncate_text(text: str, encoding: tiktoken.Encoding, max_tokens: int) -> str:
+    """Truncate a text to a maximum number of tokens using a given encoding."""
+    tokens = encoding.encode(text)
+    if len(tokens) > max_tokens:
+        return encoding.decode(tokens[:max_tokens])
+    return text
 
 
 class EmbeddingModelType(enum.StrEnum):
@@ -173,15 +207,107 @@ class OpenAIEmbeddingsModel:
         self,
         model: str | EmbeddingModel,
         openai_client: openai.OpenAI | openai.AzureOpenAI,
+        *,
         cache: diskcache.Cache | None = None,
+        encoding: tiktoken.Encoding | None = None,
+        max_batch_size: int = MAX_BATCH_SIZE,
+        max_input_tokens: int = MAX_INPUT_TOKENS,
+        token_limit_policy: typing.Literal[
+            "raise", "warn", "ignore", "truncate"
+        ] = "truncate",
+        token_limit_usage_percent: typing.Annotated[float, "Range: 1 to 100"] = 85,
     ) -> None:
         self.model = model
         self._client = openai_client
+
+        try:
+            self._encoding = tiktoken.encoding_for_model(model)
+        except KeyError:
+            logger.debug(
+                f"Encoding for model {model} not found, "
+                + "using default encoding gpt-4o"
+            )
+            self._encoding = encoding or tiktoken.encoding_for_model("gpt-4o")
+
         self._cache = cache
+        self._max_batch_size = max_batch_size
+        self._max_input_tokens = max_input_tokens
+        self._token_limit_policy = token_limit_policy
+        self._token_limit_usage_percent = token_limit_usage_percent
+
+        # Calculate effective token limit
+        self._effective_token_limit = int(
+            self._max_input_tokens * self._token_limit_usage_percent / 100
+        )
 
         # Validate model
         self._model_str = str(model)
         logger.debug(f"Initialized OpenAIEmbeddingsModel with model: {self._model_str}")
+
+    def _handle_token_limits(self, texts: typing.List[str]) -> typing.List[str]:
+        """
+        Apply token limit policy to a batch of texts.
+
+        Args:
+            texts: List of texts to process
+
+        Returns:
+            List of processed texts according to policy
+
+        Raises:
+            ValueError: If policy is "raise" and token limit exceeded
+        """
+        # Count tokens for each text
+        token_counts = count_tokens_in_batch(texts, self._encoding)
+
+        # Check if any text exceeds limit
+        over_limit_indices = [
+            i
+            for i, count in enumerate(token_counts)
+            if count > self._effective_token_limit
+        ]
+
+        if not over_limit_indices:
+            return texts  # All texts within limit
+
+        # Apply policy
+        if self._token_limit_policy == "raise":
+            max_tokens = max(token_counts[i] for i in over_limit_indices)
+            raise ValueError(
+                f"Token limit exceeded: {max_tokens} tokens > "
+                f"{self._effective_token_limit} limit. "
+                f"Consider using 'truncate' policy or increasing "
+                f"token_limit_usage_percent."
+            )
+
+        elif self._token_limit_policy == "warn":
+            max_tokens = max(token_counts[i] for i in over_limit_indices)
+            logger.warning(
+                f"Token limit exceeded: {max_tokens} tokens > "
+                f"{self._effective_token_limit} limit. "
+                f"Sending to provider anyway. "
+                f"({len(over_limit_indices)} texts affected)"
+            )
+            return texts
+
+        elif self._token_limit_policy == "ignore":
+            return texts
+
+        elif self._token_limit_policy == "truncate":
+            # Truncate texts that exceed limit
+            processed_texts = texts.copy()
+            for i in over_limit_indices:
+                processed_texts[i] = truncate_text(
+                    texts[i], self._encoding, self._effective_token_limit
+                )
+
+            logger.debug(
+                f"Truncated {len(over_limit_indices)} texts to "
+                f"{self._effective_token_limit} tokens"
+            )
+            return processed_texts
+
+        return texts  # Fallback
 
     def _batch_api_calls(
         self,
@@ -204,20 +330,27 @@ class OpenAIEmbeddingsModel:
         embeddings: typing.List[str] = []
         total_input_tokens = 0
         total_tokens = 0
-        total_batches = (len(texts) + MAX_BATCH_SIZE - 1) // MAX_BATCH_SIZE
+        total_batches = (len(texts) + self._max_batch_size - 1) // self._max_batch_size
 
-        for batch_idx in range(0, len(texts), MAX_BATCH_SIZE):
-            batch = texts[batch_idx : batch_idx + MAX_BATCH_SIZE]
-            current_batch = batch_idx // MAX_BATCH_SIZE + 1
+        for batch_idx in range(0, len(texts), self._max_batch_size):
+            batch = texts[batch_idx : batch_idx + self._max_batch_size]
+            current_batch = batch_idx // self._max_batch_size + 1
 
             logger.debug(
                 f"Processing batch {current_batch}/{total_batches} "
                 f"({len(batch)} texts)"
             )
 
+            # Apply token limit handling
+            safe_batch = (
+                batch
+                if self._token_limit_policy == "ignore"
+                else self._handle_token_limits(batch)
+            )
+
             try:
                 response = self._client.embeddings.create(
-                    input=batch,
+                    input=safe_batch,
                     model=self.model,
                     dimensions=(
                         model_settings.dimensions
@@ -232,7 +365,7 @@ class OpenAIEmbeddingsModel:
                         (
                             data.embedding
                             if isinstance(data.embedding, str)
-                            else convert_float_list_to_base64(data.embedding)
+                            else py_float_list_to_b64_np32_array(data.embedding)
                         )
                         for data in response.data
                     ]
@@ -427,11 +560,38 @@ class AsyncOpenAIEmbeddingsModel:
         self,
         model: str | EmbeddingModel,
         openai_client: openai.AsyncOpenAI | openai.AsyncAzureOpenAI,
+        *,
         cache: diskcache.Cache | None = None,
+        encoding: tiktoken.Encoding | None = None,
+        max_batch_size: int = MAX_BATCH_SIZE,
+        max_input_tokens: int = MAX_INPUT_TOKENS,
+        token_limit_policy: typing.Literal[
+            "raise", "warn", "ignore", "truncate"
+        ] = "truncate",
+        token_limit_usage_percent: typing.Annotated[float, "Range: 1 to 100"] = 85,
     ) -> None:
         self.model = model
         self._client = openai_client
+
+        try:
+            self._encoding = tiktoken.encoding_for_model(model)
+        except KeyError:
+            logger.debug(
+                f"Encoding for model {model} not found, "
+                + "using default encoding gpt-4o"
+            )
+            self._encoding = encoding or tiktoken.encoding_for_model("gpt-4o")
+
         self._cache = cache
+        self._max_batch_size = max_batch_size
+        self._max_input_tokens = max_input_tokens
+        self._token_limit_policy = token_limit_policy
+        self._token_limit_usage_percent = token_limit_usage_percent
+
+        # Calculate effective token limit
+        self._effective_token_limit = int(
+            self._max_input_tokens * self._token_limit_usage_percent / 100
+        )
 
         # Validate model
         self._model_str = str(model)
@@ -439,16 +599,84 @@ class AsyncOpenAIEmbeddingsModel:
             f"Initialized AsyncOpenAIEmbeddingsModel with model: {self._model_str}"
         )
 
+    def _handle_token_limits(self, texts: typing.List[str]) -> typing.List[str]:
+        """
+        Apply token limit policy to a batch of texts.
+
+        Args:
+            texts: List of texts to process
+
+        Returns:
+            List of processed texts according to policy
+
+        Raises:
+            ValueError: If policy is "raise" and token limit exceeded
+        """
+        # Count tokens for each text
+        token_counts = count_tokens_in_batch(texts, self._encoding)
+
+        # Check if any text exceeds limit
+        over_limit_indices = [
+            i
+            for i, count in enumerate(token_counts)
+            if count > self._effective_token_limit
+        ]
+
+        if not over_limit_indices:
+            return texts  # All texts within limit
+
+        # Apply policy
+        if self._token_limit_policy == "raise":
+            max_tokens = max(token_counts[i] for i in over_limit_indices)
+            raise ValueError(
+                f"Token limit exceeded: {max_tokens} tokens > "
+                f"{self._effective_token_limit} limit. "
+                f"Consider using 'truncate' policy or increasing "
+                f"token_limit_usage_percent."
+            )
+
+        elif self._token_limit_policy == "warn":
+            max_tokens = max(token_counts[i] for i in over_limit_indices)
+            logger.warning(
+                f"Token limit exceeded: {max_tokens} tokens > "
+                f"{self._effective_token_limit} limit. "
+                f"Sending to provider anyway. "
+                f"({len(over_limit_indices)} texts affected)"
+            )
+            return texts
+
+        elif self._token_limit_policy == "ignore":
+            return texts
+
+        elif self._token_limit_policy == "truncate":
+            # Truncate texts that exceed limit
+            processed_texts = texts.copy()
+            for i in over_limit_indices:
+                processed_texts[i] = truncate_text(
+                    texts[i], self._encoding, self._effective_token_limit
+                )
+
+            logger.debug(
+                f"Truncated {len(over_limit_indices)} texts to "
+                f"{self._effective_token_limit} tokens"
+            )
+            return processed_texts
+
+        return texts  # Fallback
+
     async def _batch_api_calls(
         self,
         texts: typing.List[str],
         model_settings: ModelSettings,
     ) -> typing.Tuple[typing.List[str], Usage]:
-        """Async version of batch API calls."""
+        """Process texts in batches with concurrent API calls.
+
+        Handles rate limiting and errors with controlled concurrency.
+        """
         embeddings = []
         total_input_tokens = 0
         total_tokens = 0
-        total_batches = (len(texts) + MAX_BATCH_SIZE - 1) // MAX_BATCH_SIZE
+        total_batches = (len(texts) + self._max_batch_size - 1) // self._max_batch_size
 
         # Process batches concurrently with controlled concurrency
         max_concurrent_batches = 5  # Adjust based on rate limits
@@ -458,15 +686,22 @@ class AsyncOpenAIEmbeddingsModel:
             batch_idx: int, batch: typing.List[str]
         ) -> typing.Tuple[typing.List[str], Usage]:
             async with semaphore:
-                current_batch = batch_idx // MAX_BATCH_SIZE + 1
+                current_batch = batch_idx // self._max_batch_size + 1
                 logger.debug(
                     f"Processing batch {current_batch}/{total_batches} "
                     f"({len(batch)} texts)"
                 )
 
+                # Apply token limit handling
+                safe_batch = (
+                    batch
+                    if self._token_limit_policy == "ignore"
+                    else self._handle_token_limits(batch)
+                )
+
                 try:
                     response = await self._client.embeddings.create(
-                        input=batch,
+                        input=safe_batch,
                         model=self.model,
                         dimensions=(
                             model_settings.dimensions
@@ -480,7 +715,7 @@ class AsyncOpenAIEmbeddingsModel:
                         (
                             data.embedding
                             if isinstance(data.embedding, str)
-                            else convert_float_list_to_base64(data.embedding)
+                            else py_float_list_to_b64_np32_array(data.embedding)
                         )
                         for data in response.data
                     ]
@@ -516,8 +751,8 @@ class AsyncOpenAIEmbeddingsModel:
 
         # Create tasks for all batches
         tasks = []
-        for batch_idx in range(0, len(texts), MAX_BATCH_SIZE):
-            batch = texts[batch_idx : batch_idx + MAX_BATCH_SIZE]
+        for batch_idx in range(0, len(texts), self._max_batch_size):
+            batch = texts[batch_idx : batch_idx + self._max_batch_size]
             tasks.append(process_batch(batch_idx, batch))
 
         # Execute all batches concurrently
@@ -539,8 +774,10 @@ class AsyncOpenAIEmbeddingsModel:
         input: str | typing.List[str],
         model_settings: ModelSettings,
     ) -> ModelResponse:
-        """
-        Async version of get_embeddings with concurrent batch processing.
+        """Get embeddings asynchronously with caching and concurrent batch processing.
+
+        Processes multiple texts concurrently for improved performance.
+        Includes the same caching and error handling as the sync version.
 
         Args:
             input: Single string or list of strings to embed
@@ -649,8 +886,10 @@ class AsyncOpenAIEmbeddingsModel:
         model_settings: ModelSettings,
         chunk_size: int = 100,
     ) -> typing.AsyncGenerator[ModelResponse, None]:
-        """
-        Async generator for processing embeddings in chunks.
+        """Generate embeddings in chunks asynchronously for memory-efficient processing.
+
+        Processes large datasets in manageable chunks to avoid memory issues.
+        Each chunk is processed concurrently with caching and error handling.
 
         Args:
             input: List of strings to embed

@@ -1,12 +1,17 @@
 [project]
 authors = [{ name = "Allen Chou", email = "f1470891079@gmail.com" }]
-dependencies = ["diskcache (>=5,<6.0.0)", "numpy (>=1)", "openai (>=1,<2)"]
+dependencies = [
+  "diskcache (>=5,<6.0.0)",
+  "numpy (>=1)",
+  "openai (>=1,<2)",
+  "tiktoken (>=0.9.0,<1.0.0)",
+]
 description = "OpenAIEmbeddingsModel"
 license = { text = "MIT" }
 name = "openai-embeddings-model"
 readme = "README.md"
 requires-python = ">=3.11,<4"
-version = "0.2.0"
+version = "0.3.0"
 
 [tool.poetry.group.dev.dependencies]
 black = { extras = ["jupyter"], version = "*" }
