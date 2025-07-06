@@ -87,6 +87,14 @@ def count_tokens_in_batch(
     return [len(tokens) for tokens in token_sequences]
 
 
+def truncate_text(text: str, encoding: tiktoken.Encoding, max_tokens: int) -> str:
+    """Truncate a text to a maximum number of tokens using a given encoding."""
+    tokens = encoding.encode(text)
+    if len(tokens) > max_tokens:
+        return encoding.decode(tokens[:max_tokens])
+    return text
+
+
 class EmbeddingModelType(enum.StrEnum):
     """Supported embedding model types with their constraints."""
 
@@ -193,10 +201,14 @@ class OpenAIEmbeddingsModel:
         model: str | EmbeddingModel,
         openai_client: openai.OpenAI | openai.AzureOpenAI,
         *,
-        encoding: tiktoken.Encoding | None = None,
         cache: diskcache.Cache | None = None,
+        encoding: tiktoken.Encoding | None = None,
         max_batch_size: int = MAX_BATCH_SIZE,
         max_input_tokens: int = MAX_INPUT_TOKENS,
+        token_limit_policy: typing.Literal[
+            "raise", "warn", "ignore", "truncate"
+        ] = "truncate",
+        token_limit_usage_percent: typing.Annotated[float, "Range: 1 to 100"] = 85,
     ) -> None:
         self.model = model
         self._client = openai_client
@@ -213,6 +225,8 @@ class OpenAIEmbeddingsModel:
         self._cache = cache
         self._max_batch_size = max_batch_size
         self._max_input_tokens = max_input_tokens
+        self._token_limit_policy = token_limit_policy
+        self._token_limit_usage_percent = token_limit_usage_percent
 
         # Validate model
         self._model_str = str(model)
@@ -463,10 +477,14 @@ class AsyncOpenAIEmbeddingsModel:
         model: str | EmbeddingModel,
         openai_client: openai.AsyncOpenAI | openai.AsyncAzureOpenAI,
         *,
-        encoding: tiktoken.Encoding | None = None,
         cache: diskcache.Cache | None = None,
+        encoding: tiktoken.Encoding | None = None,
         max_batch_size: int = MAX_BATCH_SIZE,
         max_input_tokens: int = MAX_INPUT_TOKENS,
+        token_limit_policy: typing.Literal[
+            "raise", "warn", "ignore", "truncate"
+        ] = "truncate",
+        token_limit_usage_percent: typing.Annotated[float, "Range: 1 to 100"] = 85,
     ) -> None:
         self.model = model
         self._client = openai_client
@@ -483,6 +501,8 @@ class AsyncOpenAIEmbeddingsModel:
         self._cache = cache
         self._max_batch_size = max_batch_size
         self._max_input_tokens = max_input_tokens
+        self._token_limit_policy = token_limit_policy
+        self._token_limit_usage_percent = token_limit_usage_percent
 
         # Validate model
         self._model_str = str(model)
