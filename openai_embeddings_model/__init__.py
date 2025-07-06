@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 # Constants
 MAX_BATCH_SIZE = 2048  # OpenAI's batch size limit
 MAX_INPUT_TOKENS = 8191  # Maximum tokens per input
+MAX_TOKENS_A_REQUEST = 300_000  # Maximum tokens per request
 
 
 @functools.lru_cache(maxsize=MAX_BATCH_SIZE)
@@ -228,9 +229,79 @@ class OpenAIEmbeddingsModel:
         self._token_limit_policy = token_limit_policy
         self._token_limit_usage_percent = token_limit_usage_percent
 
+        # Calculate effective token limit
+        self._effective_token_limit = int(
+            self._max_input_tokens * self._token_limit_usage_percent / 100
+        )
+
         # Validate model
         self._model_str = str(model)
         logger.debug(f"Initialized OpenAIEmbeddingsModel with model: {self._model_str}")
+
+    def _handle_token_limits(self, texts: typing.List[str]) -> typing.List[str]:
+        """
+        Apply token limit policy to a batch of texts.
+
+        Args:
+            texts: List of texts to process
+
+        Returns:
+            List of processed texts according to policy
+
+        Raises:
+            ValueError: If policy is "raise" and token limit exceeded
+        """
+        # Count tokens for each text
+        token_counts = count_tokens_in_batch(texts, self._encoding)
+
+        # Check if any text exceeds limit
+        over_limit_indices = [
+            i
+            for i, count in enumerate(token_counts)
+            if count > self._effective_token_limit
+        ]
+
+        if not over_limit_indices:
+            return texts  # All texts within limit
+
+        # Apply policy
+        if self._token_limit_policy == "raise":
+            max_tokens = max(token_counts[i] for i in over_limit_indices)
+            raise ValueError(
+                f"Token limit exceeded: {max_tokens} tokens > "
+                f"{self._effective_token_limit} limit. "
+                f"Consider using 'truncate' policy or increasing "
+                f"token_limit_usage_percent."
+            )
+
+        elif self._token_limit_policy == "warn":
+            max_tokens = max(token_counts[i] for i in over_limit_indices)
+            logger.warning(
+                f"Token limit exceeded: {max_tokens} tokens > "
+                f"{self._effective_token_limit} limit. "
+                f"Sending to provider anyway. "
+                f"({len(over_limit_indices)} texts affected)"
+            )
+            return texts
+
+        elif self._token_limit_policy == "ignore":
+            return texts
+
+        elif self._token_limit_policy == "truncate":
+            # Truncate texts that exceed limit
+            processed_texts = texts.copy()
+            for i in over_limit_indices:
+                processed_texts[i] = truncate_text(
+                    texts[i], self._encoding, self._effective_token_limit
+                )
+
+            logger.debug(
+                f"Truncated {len(over_limit_indices)} texts to "
+                f"{self._effective_token_limit} tokens"
+            )
+            return processed_texts
+
+        return texts  # Fallback
 
     def _batch_api_calls(
         self,
@@ -264,9 +335,12 @@ class OpenAIEmbeddingsModel:
                 f"({len(batch)} texts)"
             )
 
+            # Apply token limit handling
+            safe_batch = self._handle_token_limits(batch)
+
             try:
                 response = self._client.embeddings.create(
-                    input=batch,
+                    input=safe_batch,
                     model=self.model,
                     dimensions=(
                         model_settings.dimensions
@@ -504,11 +578,81 @@ class AsyncOpenAIEmbeddingsModel:
         self._token_limit_policy = token_limit_policy
         self._token_limit_usage_percent = token_limit_usage_percent
 
+        # Calculate effective token limit
+        self._effective_token_limit = int(
+            self._max_input_tokens * self._token_limit_usage_percent / 100
+        )
+
         # Validate model
         self._model_str = str(model)
         logger.debug(
             f"Initialized AsyncOpenAIEmbeddingsModel with model: {self._model_str}"
         )
+
+    def _handle_token_limits(self, texts: typing.List[str]) -> typing.List[str]:
+        """
+        Apply token limit policy to a batch of texts.
+
+        Args:
+            texts: List of texts to process
+
+        Returns:
+            List of processed texts according to policy
+
+        Raises:
+            ValueError: If policy is "raise" and token limit exceeded
+        """
+        # Count tokens for each text
+        token_counts = count_tokens_in_batch(texts, self._encoding)
+
+        # Check if any text exceeds limit
+        over_limit_indices = [
+            i
+            for i, count in enumerate(token_counts)
+            if count > self._effective_token_limit
+        ]
+
+        if not over_limit_indices:
+            return texts  # All texts within limit
+
+        # Apply policy
+        if self._token_limit_policy == "raise":
+            max_tokens = max(token_counts[i] for i in over_limit_indices)
+            raise ValueError(
+                f"Token limit exceeded: {max_tokens} tokens > "
+                f"{self._effective_token_limit} limit. "
+                f"Consider using 'truncate' policy or increasing "
+                f"token_limit_usage_percent."
+            )
+
+        elif self._token_limit_policy == "warn":
+            max_tokens = max(token_counts[i] for i in over_limit_indices)
+            logger.warning(
+                f"Token limit exceeded: {max_tokens} tokens > "
+                f"{self._effective_token_limit} limit. "
+                f"Sending to provider anyway. "
+                f"({len(over_limit_indices)} texts affected)"
+            )
+            return texts
+
+        elif self._token_limit_policy == "ignore":
+            return texts
+
+        elif self._token_limit_policy == "truncate":
+            # Truncate texts that exceed limit
+            processed_texts = texts.copy()
+            for i in over_limit_indices:
+                processed_texts[i] = truncate_text(
+                    texts[i], self._encoding, self._effective_token_limit
+                )
+
+            logger.debug(
+                f"Truncated {len(over_limit_indices)} texts to "
+                f"{self._effective_token_limit} tokens"
+            )
+            return processed_texts
+
+        return texts  # Fallback
 
     async def _batch_api_calls(
         self,
@@ -535,9 +679,12 @@ class AsyncOpenAIEmbeddingsModel:
                     f"({len(batch)} texts)"
                 )
 
+                # Apply token limit handling
+                safe_batch = self._handle_token_limits(batch)
+
                 try:
                     response = await self._client.embeddings.create(
-                        input=batch,
+                        input=safe_batch,
                         model=self.model,
                         dimensions=(
                             model_settings.dimensions
