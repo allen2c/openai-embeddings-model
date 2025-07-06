@@ -74,6 +74,19 @@ def b64_np32_array_to_py_float_list(b64_np32_array: str) -> typing.List[float]:
     return np.frombuffer(base64.b64decode(b64_np32_array), dtype=np.float32).tolist()
 
 
+def count_tokens(text: str, encoding: tiktoken.Encoding) -> int:
+    """Count the number of tokens in a text using a given encoding."""
+    return len(encoding.encode(text))
+
+
+def count_tokens_in_batch(
+    texts: typing.List[str], encoding: tiktoken.Encoding
+) -> typing.List[int]:
+    """Count the number of tokens in a batch of texts using a given encoding."""
+    token_sequences = encoding.encode_batch(texts)
+    return [len(tokens) for tokens in token_sequences]
+
+
 class EmbeddingModelType(enum.StrEnum):
     """Supported embedding model types with their constraints."""
 
@@ -226,11 +239,11 @@ class OpenAIEmbeddingsModel:
         embeddings: typing.List[str] = []
         total_input_tokens = 0
         total_tokens = 0
-        total_batches = (len(texts) + MAX_BATCH_SIZE - 1) // MAX_BATCH_SIZE
+        total_batches = (len(texts) + self._max_batch_size - 1) // self._max_batch_size
 
-        for batch_idx in range(0, len(texts), MAX_BATCH_SIZE):
-            batch = texts[batch_idx : batch_idx + MAX_BATCH_SIZE]
-            current_batch = batch_idx // MAX_BATCH_SIZE + 1
+        for batch_idx in range(0, len(texts), self._max_batch_size):
+            batch = texts[batch_idx : batch_idx + self._max_batch_size]
+            current_batch = batch_idx // self._max_batch_size + 1
 
             logger.debug(
                 f"Processing batch {current_batch}/{total_batches} "
@@ -486,7 +499,7 @@ class AsyncOpenAIEmbeddingsModel:
         embeddings = []
         total_input_tokens = 0
         total_tokens = 0
-        total_batches = (len(texts) + MAX_BATCH_SIZE - 1) // MAX_BATCH_SIZE
+        total_batches = (len(texts) + self._max_batch_size - 1) // self._max_batch_size
 
         # Process batches concurrently with controlled concurrency
         max_concurrent_batches = 5  # Adjust based on rate limits
@@ -496,7 +509,7 @@ class AsyncOpenAIEmbeddingsModel:
             batch_idx: int, batch: typing.List[str]
         ) -> typing.Tuple[typing.List[str], Usage]:
             async with semaphore:
-                current_batch = batch_idx // MAX_BATCH_SIZE + 1
+                current_batch = batch_idx // self._max_batch_size + 1
                 logger.debug(
                     f"Processing batch {current_batch}/{total_batches} "
                     f"({len(batch)} texts)"
@@ -554,8 +567,8 @@ class AsyncOpenAIEmbeddingsModel:
 
         # Create tasks for all batches
         tasks = []
-        for batch_idx in range(0, len(texts), MAX_BATCH_SIZE):
-            batch = texts[batch_idx : batch_idx + MAX_BATCH_SIZE]
+        for batch_idx in range(0, len(texts), self._max_batch_size):
+            batch = texts[batch_idx : batch_idx + self._max_batch_size]
             tasks.append(process_batch(batch_idx, batch))
 
         # Execute all batches concurrently
