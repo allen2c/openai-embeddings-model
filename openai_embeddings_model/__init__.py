@@ -12,6 +12,7 @@ import diskcache
 import numpy as np
 import openai
 import pydantic
+import tiktoken
 
 from .embedding_model import EmbeddingModel
 
@@ -178,11 +179,27 @@ class OpenAIEmbeddingsModel:
         self,
         model: str | EmbeddingModel,
         openai_client: openai.OpenAI | openai.AzureOpenAI,
+        *,
+        encoding: tiktoken.Encoding | None = None,
         cache: diskcache.Cache | None = None,
+        max_batch_size: int = MAX_BATCH_SIZE,
+        max_input_tokens: int = MAX_INPUT_TOKENS,
     ) -> None:
         self.model = model
         self._client = openai_client
+
+        try:
+            self._encoding = tiktoken.encoding_for_model(model)
+        except KeyError:
+            logger.debug(
+                f"Encoding for model {model} not found, "
+                + "using default encoding gpt-4o"
+            )
+            self._encoding = encoding or tiktoken.encoding_for_model("gpt-4o")
+
         self._cache = cache
+        self._max_batch_size = max_batch_size
+        self._max_input_tokens = max_input_tokens
 
         # Validate model
         self._model_str = str(model)
@@ -432,11 +449,27 @@ class AsyncOpenAIEmbeddingsModel:
         self,
         model: str | EmbeddingModel,
         openai_client: openai.AsyncOpenAI | openai.AsyncAzureOpenAI,
+        *,
+        encoding: tiktoken.Encoding | None = None,
         cache: diskcache.Cache | None = None,
+        max_batch_size: int = MAX_BATCH_SIZE,
+        max_input_tokens: int = MAX_INPUT_TOKENS,
     ) -> None:
         self.model = model
         self._client = openai_client
+
+        try:
+            self._encoding = tiktoken.encoding_for_model(model)
+        except KeyError:
+            logger.debug(
+                f"Encoding for model {model} not found, "
+                + "using default encoding gpt-4o"
+            )
+            self._encoding = encoding or tiktoken.encoding_for_model("gpt-4o")
+
         self._cache = cache
+        self._max_batch_size = max_batch_size
+        self._max_input_tokens = max_input_tokens
 
         # Validate model
         self._model_str = str(model)
