@@ -62,10 +62,15 @@ def get_default_cache() -> diskcache.Cache:
     return diskcache.Cache(directory="./.cache/embeddings.cache")
 
 
-def convert_float_list_to_base64(float_list: typing.List[float]) -> str:
+def py_float_list_to_b64_np32_array(float_list: typing.List[float]) -> str:
     """Convert a list of python floats to base64-encoded numpy float32 array."""
     array = np.array(float_list, dtype=np.float32)
     return base64.b64encode(array.tobytes()).decode("utf-8")
+
+
+def b64_np32_array_to_py_float_list(b64_np32_array: str) -> typing.List[float]:
+    """Convert a base64-encoded numpy float32 array to a list of python floats."""
+    return np.frombuffer(base64.b64decode(b64_np32_array), dtype=np.float32).tolist()
 
 
 class EmbeddingModelType(enum.StrEnum):
@@ -232,7 +237,7 @@ class OpenAIEmbeddingsModel:
                         (
                             data.embedding
                             if isinstance(data.embedding, str)
-                            else convert_float_list_to_base64(data.embedding)
+                            else py_float_list_to_b64_np32_array(data.embedding)
                         )
                         for data in response.data
                     ]
@@ -480,7 +485,7 @@ class AsyncOpenAIEmbeddingsModel:
                         (
                             data.embedding
                             if isinstance(data.embedding, str)
-                            else convert_float_list_to_base64(data.embedding)
+                            else py_float_list_to_b64_np32_array(data.embedding)
                         )
                         for data in response.data
                     ]
