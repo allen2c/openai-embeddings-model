@@ -31,7 +31,10 @@ MAX_TOKENS_A_REQUEST = 300_000  # Maximum tokens per request
 def generate_cache_key(
     model: str | None = None, dimensions: int | None = None, text: str | None = None
 ) -> str:
-    """Generate a cache key."""
+    """Generate a unique cache key for embedding storage.
+
+    Combines model name, dimensions, and text hash to create a unique identifier.
+    """
     if text is None:
         raise ValueError("text is required")
     hash_text = hashlib.sha256(text.encode()).hexdigest()
@@ -60,7 +63,10 @@ def validate_input(input: str | typing.List[str]) -> typing.List[str]:
 
 
 def get_default_cache() -> diskcache.Cache:
-    """Get default cache instance."""
+    """Get the default disk cache instance for embedding storage.
+
+    Creates a cache directory at './.cache/embeddings.cache' if it doesn't exist.
+    """
     return diskcache.Cache(directory="./.cache/embeddings.cache")
 
 
@@ -336,7 +342,11 @@ class OpenAIEmbeddingsModel:
             )
 
             # Apply token limit handling
-            safe_batch = self._handle_token_limits(batch)
+            safe_batch = (
+                batch
+                if self._token_limit_policy == "ignore"
+                else self._handle_token_limits(batch)
+            )
 
             try:
                 response = self._client.embeddings.create(
@@ -659,7 +669,10 @@ class AsyncOpenAIEmbeddingsModel:
         texts: typing.List[str],
         model_settings: ModelSettings,
     ) -> typing.Tuple[typing.List[str], Usage]:
-        """Async version of batch API calls."""
+        """Process texts in batches with concurrent API calls.
+
+        Handles rate limiting and errors with controlled concurrency.
+        """
         embeddings = []
         total_input_tokens = 0
         total_tokens = 0
@@ -680,7 +693,11 @@ class AsyncOpenAIEmbeddingsModel:
                 )
 
                 # Apply token limit handling
-                safe_batch = self._handle_token_limits(batch)
+                safe_batch = (
+                    batch
+                    if self._token_limit_policy == "ignore"
+                    else self._handle_token_limits(batch)
+                )
 
                 try:
                     response = await self._client.embeddings.create(
@@ -757,8 +774,10 @@ class AsyncOpenAIEmbeddingsModel:
         input: str | typing.List[str],
         model_settings: ModelSettings,
     ) -> ModelResponse:
-        """
-        Async version of get_embeddings with concurrent batch processing.
+        """Get embeddings asynchronously with caching and concurrent batch processing.
+
+        Processes multiple texts concurrently for improved performance.
+        Includes the same caching and error handling as the sync version.
 
         Args:
             input: Single string or list of strings to embed
@@ -867,8 +886,10 @@ class AsyncOpenAIEmbeddingsModel:
         model_settings: ModelSettings,
         chunk_size: int = 100,
     ) -> typing.AsyncGenerator[ModelResponse, None]:
-        """
-        Async generator for processing embeddings in chunks.
+        """Generate embeddings in chunks asynchronously for memory-efficient processing.
+
+        Processes large datasets in manageable chunks to avoid memory issues.
+        Each chunk is processed concurrently with caching and error handling.
 
         Args:
             input: List of strings to embed
