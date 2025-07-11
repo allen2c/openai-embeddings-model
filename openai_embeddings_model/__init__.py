@@ -377,26 +377,38 @@ class OpenAIEmbeddingsModel:
 
             except openai.RateLimitError as e:
                 logger.error(f"Rate limit hit on batch {current_batch}: {str(e)}")
-                raise RuntimeError(
+                logger.error(
                     f"Rate limit exceeded while processing batch "
                     f"{current_batch}/{total_batches}. "
                     f"Consider implementing exponential backoff or reducing batch size."
-                ) from e
+                )
+                raise e
+
+            except openai.NotFoundError as e:
+                logger.error(f"Model not found on batch {current_batch}: {str(e)}")
+                logger.error(
+                    f"Model {self.model} not found while processing batch "
+                    f"{current_batch}/{total_batches}. "
+                    f"Consider using a different model."
+                )
+                raise e
 
             except openai.APIError as e:
                 logger.error(f"API error on batch {current_batch}: {str(e)}")
-                raise RuntimeError(
+                logger.error(
                     f"Failed to generate embeddings for batch "
                     f"{current_batch}/{total_batches} using model {self.model}: "
                     f"{str(e)}"
-                ) from e
+                )
+                raise e
 
             except Exception as e:
                 logger.error(f"Unexpected error on batch {current_batch}: {str(e)}")
-                raise RuntimeError(
+                logger.error(
                     f"Unexpected error processing batch "
                     f"{current_batch}/{total_batches}: {str(e)}"
-                ) from e
+                )
+                raise e
 
         return embeddings, Usage(
             input_tokens=total_input_tokens,
