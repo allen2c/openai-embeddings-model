@@ -224,8 +224,8 @@ class TestErrorHandling:
                 model_settings=ModelSettings(dimensions=512),
             )
 
-        # Test RuntimeError for API errors (like invalid dimensions)
-        with pytest.raises(RuntimeError):
+        # Test openai.BadRequestError for API errors (like invalid dimensions)
+        with pytest.raises(openai.BadRequestError):
             model.get_embeddings(
                 input="Valid text",
                 model_settings=ModelSettings(dimensions=5000),  # Too large

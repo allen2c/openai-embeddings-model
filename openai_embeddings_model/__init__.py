@@ -172,16 +172,16 @@ class ModelResponse(pydantic.BaseModel):
     @functools.cached_property
     def _decoded_bytes(self) -> memoryview:
         """
-        Lazily decode *all* embeddings in one pass and expose them
-        as a zero-copy memoryview to avoid duplicating data.
+        Decode all embeddings in one pass as a zero-copy memoryview.
+        Avoids data duplication by returning a memory view of decoded bytes.
         """
         return memoryview(b"".join(base64.b64decode(s) for s in self.output))
 
     @functools.cached_property
     def _ndarray(self) -> np.ndarray:
         """
-        Materialize the NumPy array once and cache it.  Later calls to
-        `to_numpy()` or `to_python()` return the cached view.
+        Materialize the NumPy array once and cache it.
+        Later calls to `to_numpy()` or `to_python()` return the cached view.
         """
         if not self.output:  # Handle empty response.
             return np.empty((0, 0), dtype=np.float32)
@@ -246,7 +246,8 @@ class OpenAIEmbeddingsModel:
 
     def _handle_token_limits(self, texts: typing.List[str]) -> typing.List[str]:
         """
-        Apply token limit policy to a batch of texts.
+        Apply token limit policy to process texts within limits.
+        Handles truncation, warnings, or errors based on configured policy.
 
         Args:
             texts: List of texts to process
@@ -315,7 +316,8 @@ class OpenAIEmbeddingsModel:
         model_settings: ModelSettings,
     ) -> typing.Tuple[typing.List[str], Usage]:
         """
-        Process texts in batches to respect API limits.
+        Process texts in batches to respect OpenAI API limits.
+        Handles rate limiting, errors, and usage tracking across batches.
 
         Args:
             texts: List of texts to embed
@@ -421,7 +423,8 @@ class OpenAIEmbeddingsModel:
         model_settings: ModelSettings,
     ) -> ModelResponse:
         """
-        Get embeddings for the input text with caching and batch processing.
+        Generate embeddings with intelligent caching and batch processing.
+        Validates inputs, checks cache, and processes missing embeddings efficiently.
 
         Args:
             input: Single string or list of strings to embed
@@ -534,7 +537,8 @@ class OpenAIEmbeddingsModel:
         chunk_size: int = 100,
     ) -> typing.Generator[ModelResponse, None, None]:
         """
-        Generate embeddings in chunks to manage memory for large datasets.
+        Generate embeddings in chunks for memory-efficient processing.
+        Ideal for large datasets that don't fit in memory at once.
 
         Args:
             input: List of strings to embed
@@ -613,7 +617,8 @@ class AsyncOpenAIEmbeddingsModel:
 
     def _handle_token_limits(self, texts: typing.List[str]) -> typing.List[str]:
         """
-        Apply token limit policy to a batch of texts.
+        Apply token limit policy to process texts within limits.
+        Handles truncation, warnings, or errors based on configured policy.
 
         Args:
             texts: List of texts to process
@@ -681,8 +686,8 @@ class AsyncOpenAIEmbeddingsModel:
         texts: typing.List[str],
         model_settings: ModelSettings,
     ) -> typing.Tuple[typing.List[str], Usage]:
-        """Process texts in batches with concurrent API calls.
-
+        """
+        Process texts in batches with concurrent API calls.
         Handles rate limiting and errors with controlled concurrency.
         """
         embeddings = []
@@ -739,27 +744,39 @@ class AsyncOpenAIEmbeddingsModel:
 
                 except openai.RateLimitError as e:
                     logger.error(f"Rate limit hit on batch {current_batch}: {str(e)}")
-                    raise RuntimeError(
-                        f"Rate limit exceeded while processing batch "
+                    logger.error(
+                        "Rate limit exceeded while processing batch "
                         f"{current_batch}/{total_batches}. "
                         "Consider implementing exponential backoff or "
                         "reducing batch size."
-                    ) from e
+                    )
+                    raise e
+
+                except openai.NotFoundError as e:
+                    logger.error(f"Model not found on batch {current_batch}: {str(e)}")
+                    logger.error(
+                        f"Model {self.model} not found while processing batch "
+                        f"{current_batch}/{total_batches}. "
+                        f"Consider using a different model."
+                    )
+                    raise e
 
                 except openai.APIError as e:
                     logger.error(f"API error on batch {current_batch}: {str(e)}")
-                    raise RuntimeError(
+                    logger.error(
                         f"Failed to generate embeddings for batch "
-                        f"{current_batch}/{total_batches} "
-                        f"using model {self.model}: {str(e)}"
-                    ) from e
+                        f"{current_batch}/{total_batches} using model {self.model}: "
+                        f"{str(e)}"
+                    )
+                    raise e
 
                 except Exception as e:
                     logger.error(f"Unexpected error on batch {current_batch}: {str(e)}")
-                    raise RuntimeError(
+                    logger.error(
                         f"Unexpected error processing batch "
                         f"{current_batch}/{total_batches}: {str(e)}"
-                    ) from e
+                    )
+                    raise e
 
         # Create tasks for all batches
         tasks = []
@@ -786,10 +803,9 @@ class AsyncOpenAIEmbeddingsModel:
         input: str | typing.List[str],
         model_settings: ModelSettings,
     ) -> ModelResponse:
-        """Get embeddings asynchronously with caching and concurrent batch processing.
-
+        """
+        Generate embeddings asynchronously with caching and concurrent processing.
         Processes multiple texts concurrently for improved performance.
-        Includes the same caching and error handling as the sync version.
 
         Args:
             input: Single string or list of strings to embed
@@ -898,10 +914,9 @@ class AsyncOpenAIEmbeddingsModel:
         model_settings: ModelSettings,
         chunk_size: int = 100,
     ) -> typing.AsyncGenerator[ModelResponse, None]:
-        """Generate embeddings in chunks asynchronously for memory-efficient processing.
-
+        """
+        Generate embeddings in chunks asynchronously for memory-efficient processing.
         Processes large datasets in manageable chunks to avoid memory issues.
-        Each chunk is processed concurrently with caching and error handling.
 
         Args:
             input: List of strings to embed
