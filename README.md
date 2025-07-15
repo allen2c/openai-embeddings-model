@@ -1,31 +1,17 @@
 # OpenAI Embeddings Model
 
-A high-performance, thread-safe Python library for generating embeddings using OpenAI's embedding models and other OpenAI-compatible APIs with intelligent caching and batch processing.
+A high-performance Python library for generating embeddings using OpenAI's API and other OpenAI-compatible providers with intelligent caching and batch processing.
 
 ## Features
 
-- **🚀 High Performance**: Optimized batch processing with configurable batch sizes
-- **🔄 Smart Caching**: Intelligent disk-based caching to avoid redundant API calls
-- **⚡ Async Support**: Both synchronous and asynchronous implementations
-- **🧠 Memory Efficient**: Lazy decoding with zero-copy memory views
-- **📊 Usage Tracking**: Comprehensive token usage and cache hit statistics
-- **🛡️ Thread Safe**: Concurrent processing with proper error handling
-- **📈 Scalable**: Generator support for processing large datasets
-- **🎯 Model Validation**: Automatic validation of model capabilities and constraints
-
-## Supported Models
-
-### OpenAI Official Models
-
-- `text-embedding-3-small` (up to 1536 dimensions)
-- `text-embedding-3-large` (up to 3072 dimensions)
-- `text-embedding-ada-002` (1536 dimensions, no custom dimensions)
-
-### OpenAI-Compatible APIs
-
-- Any embedding model accessible through OpenAI-compatible endpoints
-- Self-hosted solutions like Ollama, LocalAI, etc.
-- Custom embedding services with OpenAI-compatible interfaces
+- **🚀 High Performance**: Optimized batch processing
+- **🔄 Smart Caching**: Intelligent disk-based caching
+- **⚡ Async Support**: Full async/await support
+- **🧠 Memory Efficient**: Lazy decoding with zero-copy views
+- **📊 Usage Tracking**: Token usage and cache statistics
+- **🛡️ Thread Safe**: Concurrent processing support
+- **🌐 Multi-Provider**: OpenAI, Gemini, and other compatible APIs
+- **📈 Scalable**: Generator support for large datasets
 
 ## Installation
 
@@ -33,27 +19,17 @@ A high-performance, thread-safe Python library for generating embeddings using O
 pip install openai-embeddings-model
 ```
 
-## Requirements
-
-- Python 3.11+
-- OpenAI API key
-
 ## Quick Start
 
-### Synchronous Usage
+### Basic Usage
 
 ```python
 import openai
 from openai_embeddings_model import OpenAIEmbeddingsModel, ModelSettings
 
-# Initialize OpenAI client
+# Initialize
 client = openai.OpenAI(api_key="your-api-key")
-
-# Create embedding model
-model = OpenAIEmbeddingsModel(
-    model="text-embedding-3-small",
-    openai_client=client
-)
+model = OpenAIEmbeddingsModel(model="text-embedding-3-small", openai_client=client)
 
 # Generate embeddings
 response = model.get_embeddings(
@@ -61,16 +37,13 @@ response = model.get_embeddings(
     model_settings=ModelSettings(dimensions=512)
 )
 
-# Access embeddings
+# Access results
 embeddings = response.to_numpy()  # NumPy array
 embeddings_list = response.to_python()  # Python lists
-
-# Check usage statistics
-print(f"Input tokens: {response.usage.input_tokens}")
-print(f"Cache hits: {response.usage.cache_hits}")
+print(f"Tokens used: {response.usage.input_tokens}")
 ```
 
-### Asynchronous Usage
+### Async Usage
 
 ```python
 import asyncio
@@ -78,48 +51,82 @@ import openai
 from openai_embeddings_model import AsyncOpenAIEmbeddingsModel, ModelSettings
 
 async def main():
-    # Initialize async OpenAI client
     client = openai.AsyncOpenAI(api_key="your-api-key")
+    model = AsyncOpenAIEmbeddingsModel(model="text-embedding-3-small", openai_client=client)
 
-    # Create async embedding model
-    model = AsyncOpenAIEmbeddingsModel(
-        model="text-embedding-3-small",
-        openai_client=client
-    )
-
-    # Generate embeddings
     response = await model.get_embeddings(
         input=["Hello, world!", "How are you?"],
         model_settings=ModelSettings(dimensions=512)
     )
 
     embeddings = response.to_numpy()
-    print(f"Generated embeddings: {embeddings.shape}")
+    print(f"Shape: {embeddings.shape}")
 
 asyncio.run(main())
 ```
 
-## Advanced Usage
+## Supported Providers
+
+### OpenAI
+
+```python
+client = openai.OpenAI(api_key="your-api-key")
+model = OpenAIEmbeddingsModel(model="text-embedding-3-small", openai_client=client)
+```
+
+**Available models:**
+
+- `text-embedding-3-small` (up to 1536 dimensions)
+- `text-embedding-3-large` (up to 3072 dimensions)
+- `text-embedding-ada-002` (1536 dimensions, fixed)
+
+### Gemini
+
+```python
+client = openai.OpenAI(
+    base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+    api_key="your-gemini-api-key"
+)
+model = OpenAIEmbeddingsModel(model="text-embedding-004", openai_client=client)
+```
+
+### Azure OpenAI
+
+```python
+from openai import AzureOpenAI
+
+client = AzureOpenAI(
+    api_key="your-azure-api-key",
+    api_version="2023-05-15",
+    azure_endpoint="https://your-resource.openai.azure.com/"
+)
+model = OpenAIEmbeddingsModel(model="text-embedding-3-small", openai_client=client)
+```
+
+### Self-Hosted (Ollama, LocalAI, etc.)
+
+```python
+client = openai.OpenAI(
+    base_url="http://localhost:11434/v1",
+    api_key="ollama"  # Ollama doesn't require a real API key
+)
+model = OpenAIEmbeddingsModel(model="nomic-embed-text", openai_client=client)
+```
+
+## Advanced Features
 
 ### Batch Processing
 
 ```python
-# Process large datasets efficiently
+# Process multiple texts efficiently
 texts = ["Text 1", "Text 2", "Text 3", ...]
 
 # All at once
-response = model.get_embeddings(
-    input=texts,
-    model_settings=ModelSettings(dimensions=512)
-)
+response = model.get_embeddings(input=texts, model_settings=ModelSettings(dimensions=512))
 
-# Or use generator for memory efficiency
-for chunk_response in model.get_embeddings_generator(
-    input=texts,
-    model_settings=ModelSettings(dimensions=512),
-    chunk_size=100
-):
-    process_chunk(chunk_response.to_numpy())
+# Or use generator for large datasets
+for chunk in model.get_embeddings_generator(input=texts, chunk_size=100):
+    process_chunk(chunk.to_numpy())
 ```
 
 ### Custom Caching
@@ -129,7 +136,6 @@ import diskcache
 
 # Custom cache location
 cache = diskcache.Cache('/path/to/cache')
-
 model = OpenAIEmbeddingsModel(
     model="text-embedding-3-small",
     openai_client=client,
@@ -138,157 +144,78 @@ model = OpenAIEmbeddingsModel(
 
 # Or use default cache
 from openai_embeddings_model import get_default_cache
-model = OpenAIEmbeddingsModel(
-    model="text-embedding-3-small",
-    openai_client=client,
-    cache=get_default_cache()
-)
+cache = get_default_cache()
 ```
 
 ### Model Configuration
 
 ```python
-# Configure model settings
 settings = ModelSettings(
     dimensions=1024,    # Custom dimensions (if supported)
     timeout=30.0       # Request timeout in seconds
 )
 
-response = model.get_embeddings(
-    input="Your text here",
-    model_settings=settings
-)
-```
-
-### Azure OpenAI Support
-
-```python
-from openai import AzureOpenAI
-
-# Azure OpenAI client
-client = AzureOpenAI(
-    api_key="your-azure-api-key",
-    api_version="2023-05-15",
-    azure_endpoint="https://your-resource.openai.azure.com/"
-)
-
-model = OpenAIEmbeddingsModel(
-    model="text-embedding-3-small",
-    openai_client=client
-)
-```
-
-### Self-Hosted and OpenAI-Compatible APIs
-
-```python
-import openai
-
-# Ollama (self-hosted)
-client = openai.OpenAI(
-    base_url="http://localhost:11434/v1",
-    api_key="ollama"  # Ollama doesn't require a real API key
-)
-
-model = OpenAIEmbeddingsModel(
-    model="nomic-embed-text",  # Or any model available in Ollama
-    openai_client=client
-)
-
-# Other OpenAI-compatible endpoints
-client = openai.OpenAI(
-    base_url="https://your-custom-endpoint.com/v1",
-    api_key="your-api-key"
-)
-
-model = OpenAIEmbeddingsModel(
-    model="your-custom-model",
-    openai_client=client
-)
+response = model.get_embeddings(input="Your text", model_settings=settings)
 ```
 
 ## API Reference
 
-### OpenAIEmbeddingsModel
+### Models
 
-Main class for synchronous embedding generation.
+- **OpenAIEmbeddingsModel** - Synchronous embedding generation
+- **AsyncOpenAIEmbeddingsModel** - Asynchronous embedding generation
 
-#### OpenAIEmbeddingsModel Methods
+### Methods
 
-- `get_embeddings(input, model_settings) -> ModelResponse`
-    - Generate embeddings for input text(s)
-    - **input**: `str` or `List[str]` - Text(s) to embed
-    - **model_settings**: `ModelSettings` - Configuration options
-    - **Returns**: `ModelResponse` with embeddings and usage stats
+- `get_embeddings(input, model_settings)` → `ModelResponse`
+- `get_embeddings_generator(input, model_settings, chunk_size=100)` → `Generator[ModelResponse]`
 
-- `get_embeddings_generator(input, model_settings, chunk_size=100) -> Generator[ModelResponse, None, None]`
-    - Generate embeddings in chunks for large datasets
-    - **chunk_size**: `int` - Number of texts per chunk
+### Configuration
 
-### AsyncOpenAIEmbeddingsModel
+- **ModelSettings**
+    - `dimensions: int | None = None` - Custom embedding dimensions
+    - `timeout: float | None = None` - Request timeout
 
-Asynchronous version with the same interface but async methods.
+### Response
 
-#### AsyncOpenAIEmbeddingsModel Methods
-
-- `async get_embeddings(input, model_settings) -> ModelResponse`
-- `async get_embeddings_generator(input, model_settings, chunk_size=100) -> AsyncGenerator[ModelResponse, None]`
-
-### ModelSettings
-
-Configuration for embedding requests.
-
-#### ModelSettings Attributes
-
-- `dimensions: int | None = None` - Custom embedding dimensions
-- `timeout: float | None = None` - Request timeout in seconds
-
-### ModelResponse
-
-Response object containing embeddings and metadata.
-
-#### ModelResponse Methods
-
-- `to_numpy() -> NDArray[np.float32]` - Get embeddings as NumPy array
-- `to_python() -> List[List[float]]` - Get embeddings as Python lists
-
-#### ModelResponse Attributes
-
-- `usage: Usage` - Token usage statistics
-    - `input_tokens: int` - Number of input tokens
-    - `total_tokens: int` - Total tokens used
-    - `cache_hits: int` - Number of cache hits
+- **ModelResponse**
+    - `to_numpy()` → `NDArray[np.float32]` - NumPy array
+    - `to_python()` → `List[List[float]]` - Python lists
+    - `usage.input_tokens` - Input tokens used
+    - `usage.total_tokens` - Total tokens used
+    - `usage.cache_hits` - Cache hits
 
 ## Error Handling
 
-The library provides comprehensive error handling:
-
 ```python
 try:
-    response = model.get_embeddings(
-        input="Your text",
-        model_settings=ModelSettings(dimensions=512)
-    )
+    response = model.get_embeddings(input="Your text", model_settings=settings)
 except ValueError as e:
-    print(f"Invalid input or settings: {e}")
+    print(f"Invalid input: {e}")
 except RuntimeError as e:
     print(f"API error: {e}")
 ```
 
 ## Performance Tips
 
-1. **Use caching**: Enable caching to avoid redundant API calls
-2. **Batch processing**: Process multiple texts at once for better throughput
-3. **Custom dimensions**: Use smaller dimensions when possible to reduce costs
-4. **Async for I/O**: Use async version for I/O-bound applications
-5. **Generators**: Use generators for large datasets to manage memory usage
+1. **Enable caching** - Avoid redundant API calls
+2. **Use batch processing** - Process multiple texts together
+3. **Choose appropriate dimensions** - Smaller = faster + cheaper
+4. **Use async for I/O-bound work** - Better concurrency
+5. **Use generators for large datasets** - Memory efficient
+
+## Requirements
+
+- Python 3.11+
+- OpenAI API key (or compatible provider)
 
 ## License
 
-MIT License - see LICENSE file for details.
+MIT License
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit pull requests or open issues.
+Contributions welcome! Please submit pull requests or open issues.
 
 ## Author
 

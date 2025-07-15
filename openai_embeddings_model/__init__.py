@@ -736,6 +736,21 @@ class AsyncOpenAIEmbeddingsModel:
                         )
                         for data in response.data
                     ]
+
+                    # Handle providers capabilities
+                    if response.usage is None:
+                        logger.debug(
+                            f"Provider {self._client.base_url} does not support "
+                            f"usage information. Using self tiktoken calculation."
+                        )
+                        _batch_tokens: int = sum(
+                            count_tokens_in_batch(safe_batch, self._encoding)
+                        )
+                        response.usage = openai.types.create_embedding_response.Usage(
+                            prompt_tokens=_batch_tokens,
+                            total_tokens=_batch_tokens,
+                        )
+
                     batch_usage = Usage(
                         input_tokens=response.usage.prompt_tokens,
                         total_tokens=response.usage.total_tokens,

@@ -1,10 +1,12 @@
 import logging
+import os
 import sys
 import tempfile
 
 import diskcache
 import openai
 import pytest
+from str_or_none import str_or_none
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -29,3 +31,15 @@ def openai_client():
 @pytest.fixture(scope="module")
 def openai_client_async():
     return openai.AsyncOpenAI()
+
+
+@pytest.fixture(scope="module")
+def gemini_client_async():
+    GEMINI_API_KEY = str_or_none(os.getenv("GEMINI_API_KEY"))
+    if not GEMINI_API_KEY:
+        raise ValueError("GEMINI_API_KEY is not set")
+
+    return openai.AsyncOpenAI(
+        base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+        api_key=GEMINI_API_KEY,
+    )
