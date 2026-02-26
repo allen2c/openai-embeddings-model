@@ -351,16 +351,26 @@ class OpenAIEmbeddingsModel:
             )
 
             try:
+                extra: dict[str, typing.Any] = {}
+                if "voyage" in self.model:
+                    if model_settings.dimensions is not None:
+                        extra["extra_body"] = {
+                            "output_dimension": model_settings.dimensions
+                        }
+                else:
+                    extra = {
+                        "dimensions": (
+                            model_settings.dimensions
+                            if model_settings.dimensions is not None
+                            else openai.NOT_GIVEN
+                        )
+                    }
                 response = self._client.embeddings.create(
                     input=safe_batch,
                     model=self.model,
-                    dimensions=(
-                        model_settings.dimensions
-                        if model_settings.dimensions is not None
-                        else openai.NOT_GIVEN
-                    ),
                     encoding_format="base64",
                     timeout=model_settings.timeout,
+                    **extra,
                 )
                 embeddings.extend(
                     [
@@ -374,7 +384,11 @@ class OpenAIEmbeddingsModel:
                 )
 
                 # Accumulate actual token usage from API response
-                total_input_tokens += response.usage.prompt_tokens
+                total_input_tokens += (
+                    response.usage.prompt_tokens
+                    if response.usage.prompt_tokens is not None
+                    else response.usage.total_tokens
+                )
                 total_tokens += response.usage.total_tokens
 
             except openai.RateLimitError as e:
@@ -717,16 +731,27 @@ class AsyncOpenAIEmbeddingsModel:
                 )
 
                 try:
+                    extra: dict[str, typing.Any] = {"extra_body": {}}
+                    if "voyage" in self.model:
+                        if model_settings.dimensions is not None:
+                            extra["extra_body"][
+                                "output_dimension"
+                            ] = model_settings.dimensions
+                    else:
+                        extra = {
+                            "dimensions": (
+                                model_settings.dimensions
+                                if model_settings.dimensions is not None
+                                else openai.NOT_GIVEN
+                            )
+                        }
+
                     response = await self._client.embeddings.create(
                         input=safe_batch,
                         model=self.model,
-                        dimensions=(
-                            model_settings.dimensions
-                            if model_settings.dimensions is not None
-                            else openai.NOT_GIVEN
-                        ),
                         encoding_format="base64",
                         timeout=model_settings.timeout,
+                        **extra,
                     )
                     batch_embeddings = [
                         (
@@ -752,7 +777,11 @@ class AsyncOpenAIEmbeddingsModel:
                         )
 
                     batch_usage = Usage(
-                        input_tokens=response.usage.prompt_tokens,
+                        input_tokens=(
+                            response.usage.prompt_tokens
+                            if response.usage.prompt_tokens is not None
+                            else response.usage.total_tokens
+                        ),
                         total_tokens=response.usage.total_tokens,
                     )
                     return batch_embeddings, batch_usage
