@@ -2,25 +2,39 @@ import logging
 import os
 import sys
 import tempfile
+from pathlib import Path
 
 import diskcache
 import openai
 import pytest
 from str_or_none import str_or_none
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    stream=sys.stdout,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    force=True,
-)
+LOGGING_VERBOSE = False
+
+if LOGGING_VERBOSE:
+    logging.basicConfig(
+        level=logging.DEBUG,
+        stream=sys.stdout,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        force=True,
+    )
 
 
 @pytest.fixture(scope="module")
 def cache():
+    return diskcache.Cache("./.cache/embeddings.cache")
+
+
+@pytest.fixture(scope="module")
+def tmp_dir():
     with tempfile.TemporaryDirectory() as temp_dir:
-        yield diskcache.Cache(temp_dir)
+        yield Path(temp_dir)
+
+
+@pytest.fixture(scope="module")
+def tmp_cache(tmp_dir: Path):
+    yield diskcache.Cache(tmp_dir)
 
 
 @pytest.fixture(scope="module")

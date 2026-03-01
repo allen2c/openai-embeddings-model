@@ -199,6 +199,41 @@ class ModelResponse(pydantic.BaseModel):
         """Return embeddings as ordinary Python lists (cached)."""
         return self._ndarray.tolist()
 
+    def as_similarity_response(self) -> "SimilarityResponse":
+        from openai_embeddings_model.normalize import normalize
+
+        embeddings = normalize(self.to_numpy())
+
+        similarity_matrix = (
+            embeddings[0:1, :] @ embeddings[1:, :].T
+        )  # Shape: (1, length)
+        relevance_scores = similarity_matrix.squeeze()  # Shape: (length, )
+
+        similarity_response = SimilarityResponse.model_validate(
+            {
+                "results": [
+                    SimilarityResult(index=i, relevance_score=score)
+                    for i, score in enumerate(relevance_scores)
+                ],
+                "usage": Usage.model_validate_json(self.usage.model_dump_json()),
+            }
+        )
+        similarity_response.results.sort(key=lambda x: x.relevance_score, reverse=True)
+
+        return similarity_response
+
+
+class SimilarityResult(pydantic.BaseModel):
+    index: int
+    relevance_score: float = 0.0
+
+
+class SimilarityResponse(pydantic.BaseModel):
+    """Response from similarity model with lazy decoding."""
+
+    results: list[SimilarityResult]
+    usage: Usage
+
 
 class OpenAIEmbeddingsModel:
     """Thread-safe OpenAI embeddings model with caching and batch processing."""
@@ -581,6 +616,22 @@ class OpenAIEmbeddingsModel:
             chunk = validated_input[i : i + chunk_size]
             logger.debug(f"Processing chunk {i // chunk_size + 1}/{total_chunks}")
             yield self.get_embeddings(chunk, model_settings)
+
+    def get_similarity(
+        self,
+        query: str,
+        documents: typing.List[str],
+        *,
+        model_settings: ModelSettings,
+    ) -> SimilarityResponse:
+        if not documents:
+            raise ValueError("documents is required")
+        if not query:
+            raise ValueError("query is required")
+
+        embeddings_res = self.get_embeddings([query] + documents, model_settings)
+
+        return embeddings_res.as_similarity_response()
 
 
 class AsyncOpenAIEmbeddingsModel:
@@ -986,3 +1037,19 @@ class AsyncOpenAIEmbeddingsModel:
             chunk = validated_input[i : i + chunk_size]
             logger.debug(f"Processing chunk {i // chunk_size + 1}/{total_chunks}")
             yield await self.get_embeddings(chunk, model_settings)
+
+    async def get_similarity(
+        self,
+        query: str,
+        documents: typing.List[str],
+        *,
+        model_settings: ModelSettings,
+    ) -> SimilarityResponse:
+        if not documents:
+            raise ValueError("documents is required")
+        if not query:
+            raise ValueError("query is required")
+
+        embeddings_res = await self.get_embeddings([query] + documents, model_settings)
+
+        return embeddings_res.as_similarity_response()
