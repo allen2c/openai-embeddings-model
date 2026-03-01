@@ -18,6 +18,7 @@ version = "0.5.0"
 black = { extras = ["jupyter"], version = "*" }
 faker = "*"
 isort = "*"
+mkdocs-material = "*"
 poetry-plugin-export = "*"
 pytest = "^8"
 pytest-asyncio = "*"
