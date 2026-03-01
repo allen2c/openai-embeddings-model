@@ -235,13 +235,16 @@ class SimilarityResponse(pydantic.BaseModel):
     usage: Usage
 
 
-class OpenAIEmbeddingsModel:
-    """Thread-safe OpenAI embeddings model with caching and batch processing."""
-
+class _OpenAIEmbeddingsModelBase:
     def __init__(
         self,
         model: str | EmbeddingModel,
-        openai_client: openai.OpenAI | openai.AzureOpenAI,
+        openai_client: (
+            openai.OpenAI
+            | openai.AzureOpenAI
+            | openai.AsyncOpenAI
+            | openai.AsyncAzureOpenAI
+        ),
         *,
         cache: diskcache.Cache | None = None,
         encoding: tiktoken.Encoding | None = None,
@@ -277,7 +280,9 @@ class OpenAIEmbeddingsModel:
 
         # Validate model
         self._model_str = str(model)
-        logger.debug(f"Initialized OpenAIEmbeddingsModel with model: {self._model_str}")
+        logger.debug(
+            f"Initialized {self.__class__.__name__} with model: {self._model_str}"
+        )
 
     def _handle_token_limits(self, texts: typing.List[str]) -> typing.List[str]:
         """
@@ -293,10 +298,8 @@ class OpenAIEmbeddingsModel:
         Raises:
             ValueError: If policy is "raise" and token limit exceeded
         """
-        # Count tokens for each text
         token_counts = count_tokens_in_batch(texts, self._encoding)
 
-        # Check if any text exceeds limit
         over_limit_indices = [
             i
             for i, count in enumerate(token_counts)
@@ -304,9 +307,8 @@ class OpenAIEmbeddingsModel:
         ]
 
         if not over_limit_indices:
-            return texts  # All texts within limit
+            return texts
 
-        # Apply policy
         if self._token_limit_policy == "raise":
             max_tokens = max(token_counts[i] for i in over_limit_indices)
             raise ValueError(
@@ -330,7 +332,6 @@ class OpenAIEmbeddingsModel:
             return texts
 
         elif self._token_limit_policy == "truncate":
-            # Truncate texts that exceed limit
             processed_texts = texts.copy()
             for i in over_limit_indices:
                 processed_texts[i] = truncate_text(
@@ -344,6 +345,43 @@ class OpenAIEmbeddingsModel:
             return processed_texts
 
         return texts  # Fallback
+
+    def _cache_get(self, key: str) -> str | None:
+        if self._cache is None:
+            return None
+        cached = self._cache.get(key)
+        return str(cached) if cached is not None else None
+
+    def _cache_set(self, key: str, value: str) -> None:
+        if self._cache is not None:
+            self._cache.set(key, value)
+
+    def _build_extra_kwargs(
+        self, model_settings: ModelSettings
+    ) -> dict[str, typing.Any]:
+        if "voyage" in str(self.model):
+            if model_settings.dimensions is not None:
+                return {"extra_body": {"output_dimension": model_settings.dimensions}}
+            return {}
+        return {
+            "dimensions": (
+                model_settings.dimensions
+                if model_settings.dimensions is not None
+                else openai.NOT_GIVEN
+            )
+        }
+
+
+class OpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
+    """Thread-safe OpenAI embeddings model with caching and batch processing."""
+
+    @property
+    def client(self) -> openai.OpenAI | openai.AzureOpenAI:
+        if not isinstance(self._client, (openai.OpenAI, openai.AzureOpenAI)):
+            raise TypeError(
+                f"Expected a sync OpenAI client, got {type(self._client).__name__}"
+            )
+        return self._client
 
     def _batch_api_calls(
         self,
@@ -386,26 +424,12 @@ class OpenAIEmbeddingsModel:
             )
 
             try:
-                extra: dict[str, typing.Any] = {}
-                if "voyage" in self.model:
-                    if model_settings.dimensions is not None:
-                        extra["extra_body"] = {
-                            "output_dimension": model_settings.dimensions
-                        }
-                else:
-                    extra = {
-                        "dimensions": (
-                            model_settings.dimensions
-                            if model_settings.dimensions is not None
-                            else openai.NOT_GIVEN
-                        )
-                    }
-                response = self._client.embeddings.create(
+                response = self.client.embeddings.create(
                     input=safe_batch,
                     model=self.model,
                     encoding_format="base64",
                     timeout=model_settings.timeout,
-                    **extra,
+                    **self._build_extra_kwargs(model_settings),
                 )
                 embeddings.extend(
                     [
@@ -503,22 +527,18 @@ class OpenAIEmbeddingsModel:
         cache_hits = 0
 
         # Check cache for existing embeddings
-        if self._cache is not None:
-            for i, item in enumerate(_input):
-                cache_key = generate_cache_key(
-                    model=self._model_str,
-                    dimensions=model_settings.dimensions,
-                    text=item,
-                )
-                cached_item = self._cache.get(cache_key)
-
-                if cached_item is None:
-                    _missing_idx.append(i)
-                else:
-                    _output[i] = str(cached_item)
-                    cache_hits += 1
-        else:
-            _missing_idx = list(range(len(_input)))
+        for i, item in enumerate(_input):
+            cache_key = generate_cache_key(
+                model=self._model_str,
+                dimensions=model_settings.dimensions,
+                text=item,
+            )
+            cached_item = self._cache_get(cache_key)
+            if cached_item is None:
+                _missing_idx.append(i)
+            else:
+                _output[i] = cached_item
+                cache_hits += 1
 
         # Log cache statistics
         if self._cache is not None and _input:
@@ -545,14 +565,12 @@ class OpenAIEmbeddingsModel:
                 # Store results and update cache
                 for missing_idx_pos, embedding in zip(_missing_idx, embeddings):
                     _output[missing_idx_pos] = embedding
-
-                    if self._cache is not None:
-                        cache_key = generate_cache_key(
-                            model=self._model_str,
-                            dimensions=model_settings.dimensions,
-                            text=_input[missing_idx_pos],
-                        )
-                        self._cache.set(cache_key, embedding)
+                    cache_key = generate_cache_key(
+                        model=self._model_str,
+                        dimensions=model_settings.dimensions,
+                        text=_input[missing_idx_pos],
+                    )
+                    self._cache_set(cache_key, embedding)
 
             except Exception as e:
                 logger.error(f"Failed to process embeddings: {str(e)}")
@@ -634,117 +652,26 @@ class OpenAIEmbeddingsModel:
         return embeddings_res.as_similarity_response()
 
 
-class AsyncOpenAIEmbeddingsModel:
+class AsyncOpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
     """Async version of OpenAI embeddings model with caching and batch processing."""
 
-    def __init__(
-        self,
-        model: str | EmbeddingModel,
-        openai_client: openai.AsyncOpenAI | openai.AsyncAzureOpenAI,
-        *,
-        cache: diskcache.Cache | None = None,
-        encoding: tiktoken.Encoding | None = None,
-        max_batch_size: int = MAX_BATCH_SIZE,
-        max_input_tokens: int = MAX_INPUT_TOKENS,
-        token_limit_policy: typing.Literal[
-            "raise", "warn", "ignore", "truncate"
-        ] = "truncate",
-        token_limit_usage_percent: typing.Annotated[float, "Range: 1 to 100"] = 85,
-    ) -> None:
-        self.model = model
-        self._client = openai_client
-
-        try:
-            self._encoding = tiktoken.encoding_for_model(model)
-        except KeyError:
-            logger.debug(
-                f"Encoding for model {model} not found, "
-                + "using default encoding gpt-4o"
+    @property
+    def client(self) -> openai.AsyncOpenAI | openai.AsyncAzureOpenAI:
+        if not isinstance(self._client, (openai.AsyncOpenAI, openai.AsyncAzureOpenAI)):
+            raise TypeError(
+                f"Expected an async OpenAI client, got {type(self._client).__name__}"
             )
-            self._encoding = encoding or tiktoken.encoding_for_model("gpt-4o")
+        return self._client
 
-        self._cache = cache
-        self._max_batch_size = max_batch_size
-        self._max_input_tokens = max_input_tokens
-        self._token_limit_policy = token_limit_policy
-        self._token_limit_usage_percent = token_limit_usage_percent
+    async def _cache_get(self, key: str) -> str | None:  # type: ignore[override]
+        if self._cache is None:
+            return None
+        cached = await asyncio.to_thread(self._cache.get, key)
+        return str(cached) if cached is not None else None
 
-        # Calculate effective token limit
-        self._effective_token_limit = int(
-            self._max_input_tokens * self._token_limit_usage_percent / 100
-        )
-
-        # Validate model
-        self._model_str = str(model)
-        logger.debug(
-            f"Initialized AsyncOpenAIEmbeddingsModel with model: {self._model_str}"
-        )
-
-    def _handle_token_limits(self, texts: typing.List[str]) -> typing.List[str]:
-        """
-        Apply token limit policy to process texts within limits.
-        Handles truncation, warnings, or errors based on configured policy.
-
-        Args:
-            texts: List of texts to process
-
-        Returns:
-            List of processed texts according to policy
-
-        Raises:
-            ValueError: If policy is "raise" and token limit exceeded
-        """
-        # Count tokens for each text
-        token_counts = count_tokens_in_batch(texts, self._encoding)
-
-        # Check if any text exceeds limit
-        over_limit_indices = [
-            i
-            for i, count in enumerate(token_counts)
-            if count > self._effective_token_limit
-        ]
-
-        if not over_limit_indices:
-            return texts  # All texts within limit
-
-        # Apply policy
-        if self._token_limit_policy == "raise":
-            max_tokens = max(token_counts[i] for i in over_limit_indices)
-            raise ValueError(
-                f"Token limit exceeded: {max_tokens} tokens > "
-                f"{self._effective_token_limit} limit. "
-                f"Consider using 'truncate' policy or increasing "
-                f"token_limit_usage_percent."
-            )
-
-        elif self._token_limit_policy == "warn":
-            max_tokens = max(token_counts[i] for i in over_limit_indices)
-            logger.warning(
-                f"Token limit exceeded: {max_tokens} tokens > "
-                f"{self._effective_token_limit} limit. "
-                f"Sending to provider anyway. "
-                f"({len(over_limit_indices)} texts affected)"
-            )
-            return texts
-
-        elif self._token_limit_policy == "ignore":
-            return texts
-
-        elif self._token_limit_policy == "truncate":
-            # Truncate texts that exceed limit
-            processed_texts = texts.copy()
-            for i in over_limit_indices:
-                processed_texts[i] = truncate_text(
-                    texts[i], self._encoding, self._effective_token_limit
-                )
-
-            logger.debug(
-                f"Truncated {len(over_limit_indices)} texts to "
-                f"{self._effective_token_limit} tokens"
-            )
-            return processed_texts
-
-        return texts  # Fallback
+    async def _cache_set(self, key: str, value: str) -> None:  # type: ignore[override]
+        if self._cache is not None:
+            await asyncio.to_thread(self._cache.set, key, value)
 
     async def _batch_api_calls(
         self,
@@ -782,27 +709,12 @@ class AsyncOpenAIEmbeddingsModel:
                 )
 
                 try:
-                    extra: dict[str, typing.Any] = {"extra_body": {}}
-                    if "voyage" in self.model:
-                        if model_settings.dimensions is not None:
-                            extra["extra_body"][
-                                "output_dimension"
-                            ] = model_settings.dimensions
-                    else:
-                        extra = {
-                            "dimensions": (
-                                model_settings.dimensions
-                                if model_settings.dimensions is not None
-                                else openai.NOT_GIVEN
-                            )
-                        }
-
-                    response = await self._client.embeddings.create(
+                    response = await self.client.embeddings.create(
                         input=safe_batch,
                         model=self.model,
                         encoding_format="base64",
                         timeout=model_settings.timeout,
-                        **extra,
+                        **self._build_extra_kwargs(model_settings),
                     )
                     batch_embeddings = [
                         (
@@ -816,7 +728,7 @@ class AsyncOpenAIEmbeddingsModel:
                     # Handle providers capabilities
                     if response.usage is None:
                         logger.debug(
-                            f"Provider {self._client.base_url} does not support "
+                            f"Provider {self.client.base_url} does not support "
                             f"usage information. Using self tiktoken calculation."
                         )
                         _batch_tokens: int = sum(
@@ -925,22 +837,18 @@ class AsyncOpenAIEmbeddingsModel:
         cache_hits = 0
 
         # Check cache for existing embeddings
-        if self._cache is not None:
-            for i, item in enumerate(_input):
-                cache_key = generate_cache_key(
-                    model=self._model_str,
-                    dimensions=model_settings.dimensions,
-                    text=item,
-                )
-                cached_item = await asyncio.to_thread(self._cache.get, cache_key)
-
-                if cached_item is None:
-                    _missing_idx.append(i)
-                else:
-                    _output[i] = str(cached_item)
-                    cache_hits += 1
-        else:
-            _missing_idx = list(range(len(_input)))
+        for i, item in enumerate(_input):
+            cache_key = generate_cache_key(
+                model=self._model_str,
+                dimensions=model_settings.dimensions,
+                text=item,
+            )
+            cached_item = await self._cache_get(cache_key)
+            if cached_item is None:
+                _missing_idx.append(i)
+            else:
+                _output[i] = cached_item
+                cache_hits += 1
 
         # Log cache statistics
         if self._cache is not None and _input:
@@ -969,14 +877,12 @@ class AsyncOpenAIEmbeddingsModel:
                 # Store results and update cache
                 for missing_idx_pos, embedding in zip(_missing_idx, embeddings):
                     _output[missing_idx_pos] = embedding
-
-                    if self._cache is not None:
-                        cache_key = generate_cache_key(
-                            model=self._model_str,
-                            dimensions=model_settings.dimensions,
-                            text=_input[missing_idx_pos],
-                        )
-                        await asyncio.to_thread(self._cache.set, cache_key, embedding)
+                    cache_key = generate_cache_key(
+                        model=self._model_str,
+                        dimensions=model_settings.dimensions,
+                        text=_input[missing_idx_pos],
+                    )
+                    await self._cache_set(cache_key, embedding)
 
             except Exception as e:
                 logger.error(f"Failed to process embeddings: {str(e)}")
