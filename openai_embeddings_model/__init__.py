@@ -4,6 +4,7 @@ import concurrent.futures
 import enum
 import functools
 import hashlib
+import json
 import logging
 import pathlib
 import time
@@ -130,6 +131,7 @@ class ModelSettings(pydantic.BaseModel):
 
     dimensions: int | None = None
     timeout: float | None = None
+    extra_body: dict | None = None
 
     def validate_for_model(self, model: str | EmbeddingModel) -> None:
         """Validate settings are appropriate for the given model."""
@@ -361,17 +363,24 @@ class _OpenAIEmbeddingsModelBase:
     def _build_extra_kwargs(
         self, model_settings: ModelSettings
     ) -> dict[str, typing.Any]:
+        result: dict[str, typing.Any] = {}
+
         if "voyage" in str(self.model):
             if model_settings.dimensions is not None:
-                return {"extra_body": {"output_dimension": model_settings.dimensions}}
-            return {}
-        return {
-            "dimensions": (
+                result["extra_body"] = {"output_dimension": model_settings.dimensions}
+        else:
+            result["dimensions"] = (
                 model_settings.dimensions
                 if model_settings.dimensions is not None
                 else openai.NOT_GIVEN
             )
-        }
+
+        if model_settings.extra_body is not None:
+            safe_extra_body = json.loads(json.dumps(result.get("extra_body", {})))
+            safe_extra_body.update(json.loads(json.dumps(model_settings.extra_body)))
+            result["extra_body"] = safe_extra_body
+
+        return result
 
 
 class OpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
