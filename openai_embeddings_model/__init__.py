@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import concurrent.futures
 import enum
 import functools
 import hashlib
@@ -245,7 +246,7 @@ class _OpenAIEmbeddingsModelBase:
             | openai.AsyncOpenAI
             | openai.AsyncAzureOpenAI
         ),
-        *,
+        *args,
         cache: diskcache.Cache | None = None,
         encoding: tiktoken.Encoding | None = None,
         max_batch_size: int = MAX_BATCH_SIZE,
@@ -254,6 +255,7 @@ class _OpenAIEmbeddingsModelBase:
             "raise", "warn", "ignore", "truncate"
         ] = "truncate",
         token_limit_usage_percent: typing.Annotated[float, "Range: 1 to 100"] = 85,
+        **kwargs,
     ) -> None:
         self.model = model
         self._client = openai_client
@@ -655,6 +657,18 @@ class OpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
 class AsyncOpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
     """Async version of OpenAI embeddings model with caching and batch processing."""
 
+    def __init__(
+        self,
+        *args,
+        executor_max_workers: int | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self._executor = concurrent.futures.ThreadPoolExecutor(
+            max_workers=executor_max_workers,
+            thread_name_prefix=f"openai-emb-async-{id(self)}",
+        )
+
     @property
     def client(self) -> openai.AsyncOpenAI | openai.AsyncAzureOpenAI:
         if not isinstance(self._client, (openai.AsyncOpenAI, openai.AsyncAzureOpenAI)):
@@ -666,12 +680,14 @@ class AsyncOpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
     async def _cache_get(self, key: str) -> str | None:  # type: ignore[override]
         if self._cache is None:
             return None
-        cached = await asyncio.to_thread(self._cache.get, key)
+        loop = asyncio.get_running_loop()
+        cached = await loop.run_in_executor(self._executor, self._cache.get, key)
         return str(cached) if cached is not None else None
 
     async def _cache_set(self, key: str, value: str) -> None:  # type: ignore[override]
         if self._cache is not None:
-            await asyncio.to_thread(self._cache.set, key, value)
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(self._executor, self._cache.set, key, value)
 
     async def _batch_api_calls(
         self,
