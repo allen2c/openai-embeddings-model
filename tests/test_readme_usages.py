@@ -133,11 +133,11 @@ class TestAdvancedFeatures:
     """Test advanced features from README."""
 
     def test_batch_processing(
-        self, openai_client: openai.OpenAI, cache: diskcache.Cache
+        self, openai_client: openai.OpenAI, tmp_cache: diskcache.Cache
     ):
         """Test batch processing examples."""
         model = OpenAIEmbeddingsModel(
-            model="text-embedding-3-small", openai_client=openai_client, cache=cache
+            model="text-embedding-3-small", openai_client=openai_client, cache=tmp_cache
         )
 
         texts = ["Hello, world!", "How are you?", "This is a test"]
@@ -256,11 +256,11 @@ class TestResponseUsage:
     """Test response usage patterns from README."""
 
     def test_response_methods(
-        self, openai_client: openai.OpenAI, cache: diskcache.Cache
+        self, openai_client: openai.OpenAI, tmp_cache: diskcache.Cache
     ):
         """Test all response methods and properties."""
         model = OpenAIEmbeddingsModel(
-            model="text-embedding-3-small", openai_client=openai_client, cache=cache
+            model="text-embedding-3-small", openai_client=openai_client, cache=tmp_cache
         )
 
         response = model.get_embeddings(

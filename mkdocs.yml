@@ -1,0 +1,43 @@
+site_name: OpenAI Embeddings Model
+site_url: https://allen2c.github.io/openai-embeddings-model/
+site_description: High-performance Python embeddings with caching, batch processing, and similarity search.
+site_author: Allen Chou
+repo_url: https://github.com/allen2c/openai-embeddings-model
+repo_name: allen2c/openai-embeddings-model
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.top
+    - content.code.copy
+    - content.code.annotate
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
