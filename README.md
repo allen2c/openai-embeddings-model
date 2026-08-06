@@ -47,7 +47,7 @@ asyncio.run(main())
 ```
 
 `AsyncOpenAIEmbeddingsModel` owns a `ThreadPoolExecutor` for cache I/O. Use it as
-an async context manager, or call `await model.aclose()`, so the worker threads
+an async context manager, or call `await model.aclose()`, so the worker thread
 are released deterministically instead of at garbage-collection time.
 
 ## Similarity Search
@@ -181,6 +181,13 @@ and defaults.
 
 - `index: int` — original document index
 - `relevance_score: float`
+
+## Performance
+
+`executor_max_workers` defaults to `1`, and threads help only while you are
+waiting on the provider — everything else on the hot path is GIL-bound. Full
+measurements, including what was tried and rejected, are in
+[Benchmarks](https://allen2c.github.io/openai-embeddings-model/benchmarks/).
 
 ## Requirements
 

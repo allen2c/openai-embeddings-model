@@ -117,6 +117,43 @@ the cache key layout changed.
 - `get_default_cache`, `generate_cache_key`, and `CACHE_KEY_VERSION` are
   exported for cache management.
 
+### Performance
+
+Measured, not guessed. The full write-up, method, and the experiments that
+rejected four other candidates are in [Benchmarks](benchmarks.md).
+
+- **`executor_max_workers` now defaults to `1`**, not `min(32, cpu_count + 4)`.
+  Everything the async model's pool runs is GIL-bound — sqlite through
+  diskcache, and tiktoken — so the extra workers were buying contention rather
+  than parallelism. Thirty-two concurrent all-hit calls finish **4.3x faster**
+  on one worker, and every larger value measured worse, on cache hits and
+  misses alike. `aiosqlite` reaches the same design from the same constraint.
+  The parameter stays, because one worker is right only for a *local* cache.
+  Against a cache that blocks on I/O — remote, or your own object over the
+  network — the answer inverts: at 0.5 ms per read, eight workers were 6.9x
+  faster than one; at 10 ms, fourteen were 8.0x faster. **Raise it to roughly
+  your concurrency if your cache is remote.** `None` restores the stdlib
+  default.
+- **A batch's cache writes now share one sqlite transaction.** Every `set()`
+  was its own `BEGIN`/`COMMIT` round trip. Batching them is **1.6-2.4x** faster
+  on the write path — steady from an empty cache to one holding 200,000
+  entries — and takes 1.4-1.6x off a full uncached call.
+
+  The trade, in exchange: a write that fails partway through a batch now
+  discards that whole batch instead of leaving the earlier entries committed.
+  Those embeddings were already paid for, so a mid-batch disk failure costs
+  re-embedding the batch rather than just its tail. The caller still receives
+  every vector either way — only the cached copy is lost.
+- **The cache key digests the request scope once per request**, not once per
+  text. It is a `json.dumps` plus a sha256 over the provider and `extra_body`,
+  both fixed for the call, and it was two thirds of key generation — 3.3 ms
+  wasted on a 2048-text request. **Keys are byte-identical**; no cache is
+  invalidated by this.
+- `ModelResponse.to_python()` never cached its result despite the docstring
+  saying so. The docstring was wrong, not the code — caching it would hand
+  every caller the same mutable list, which is what `to_numpy()`'s copy exists
+  to prevent. Keep the result if you need it twice.
+
 ### Changed
 
 - Async cache reads and writes are batched into one executor job each, instead

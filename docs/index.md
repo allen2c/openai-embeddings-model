@@ -52,10 +52,11 @@ pip install openai-embeddings-model
 
     !!! tip "Release the thread pool"
 
-        `AsyncOpenAIEmbeddingsModel` owns a `ThreadPoolExecutor` for cache I/O.
-        Use it as an async context manager, or call `await model.aclose()`, so
-        the worker threads are released deterministically rather than at
-        garbage-collection time.
+        `AsyncOpenAIEmbeddingsModel` owns a single-worker `ThreadPoolExecutor`
+        for cache I/O. Use it as an async context manager, or call
+        `await model.aclose()`, so the worker thread is released
+        deterministically rather than at garbage-collection time. See
+        [Performance](#performance) for why it is one worker.
 
 ---
 
@@ -181,6 +182,11 @@ collide.
 Repeated texts within a single call are embedded once and the vector shared,
 so passing the same string many times costs one slot, not many.
 
+Each provider batch's entries are written in a single transaction, so a batch
+lands whole or not at all. A write failure mid-batch — a full disk — discards
+that batch's cache entries rather than leaving half of them; you still receive
+every vector, but those texts are re-embedded next time.
+
 !!! warning "0.6.0 invalidates existing caches"
 
     The key layout changed, so entries written by 0.5.x are ignored rather
@@ -209,6 +215,11 @@ approximate — pass `encoding=` to make them exact.
 `preload_app` shape — rebuilds its thread pool and cache connection in the
 child automatically.
 
+**`to_python()` rebuilds its list on every call** — roughly 43 ms for
+2048 x 1536. The decoded array behind it is cached, but handing out one shared
+mutable list would let any caller corrupt every later result. Keep the result
+if you need it twice.
+
 ---
 
 ## API Reference
@@ -236,7 +247,7 @@ child automatically.
 | `dimensions_parameter`      | `str \| None`                  | `None`       | `"dimensions"` or `"output_dimension"`; auto-detected |
 | `max_retries`               | `int`                          | `2`          | Retries for rate limits and transient failures     |
 | `retry_base_delay`          | `float`                        | `1.0`        | Seconds before the first retry, doubling each time |
-| `executor_max_workers`      | `int \| None`                  | `None`       | Async only — thread pool size                      |
+| `executor_max_workers`      | `int \| None`                  | `1`          | Async only — cache-I/O thread pool size. See [Performance](#performance) |
 | `max_concurrent_batches`    | `int`                          | `5`          | Async only — batches in flight at once. A batch keeps its slot while backing off, so a rate-limit storm can fill them all |
 
 ### Methods
@@ -282,6 +293,34 @@ child automatically.
 |-------------------|-------------------------|
 | `index`           | Original document index |
 | `relevance_score` | Cosine similarity score |
+
+---
+
+## Performance
+
+Measured, offline, with the provider replaced by a local fake — the full
+write-up is in [Benchmarks](benchmarks.md). Three things are worth knowing
+before you tune anything:
+
+**Threads help only while you wait on the provider.** On cache misses a shared
+sync model scales 25.7x across 32 threads. On cache hits it goes *backwards* —
+one thread serves 61k texts/sec, thirty-two serve 13k — because everything on
+that path is GIL-bound. Size a thread pool for provider latency, not for cores.
+
+**`executor_max_workers` defaults to `1`.** Everything the async model's pool
+runs against a local cache is GIL-bound, so extra workers cost more than they
+buy: 32 concurrent cache-hit calls finish 4.3x faster on one worker. Raise it
+to roughly your concurrency **only if your cache blocks on I/O** — something
+remote, where threads genuinely overlap. At 0.5 ms per cache read, eight
+workers were 6.9x faster than one.
+
+**A large call blocks the event loop.** A 4096-text call stalls it for tens of
+milliseconds, and a warm cache makes that worse rather than better, since
+validation runs on the loop and only hits pay for it. Feed large corpora
+through `get_embeddings_generator`, or keep them off the loop serving requests.
+
+To scale past one process's ceiling, add processes — a worker per performance
+core, each with its own model. Forking is already safe.
 
 ---
 
