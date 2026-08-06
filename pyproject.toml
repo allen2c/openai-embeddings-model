@@ -45,6 +45,14 @@ ignore = ["E203"]
 # across lines if a merged one will not fit.
 select = ["B", "E", "F", "ISC001", "RUF", "SIM", "UP", "W"]
 
+[tool.ruff.lint.per-file-ignores]
+# B023 flags a closure that reads a loop variable. Every benchmark sweep
+# defines a worker closure inside its `for threads in ...` loop and starts and
+# joins those threads within the same iteration, so the closure can never see a
+# later value. Binding each one as a default argument would only obscure what
+# is being measured.
+"benchmarks/*" = ["B023"]
+
 [tool.pyright]
 exclude = ["**/__pycache__", ".venv", "dist", "site", "tmp"]
 include = ["openai_embeddings_model", "tests"]
