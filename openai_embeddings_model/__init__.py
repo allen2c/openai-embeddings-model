@@ -75,6 +75,20 @@ if hasattr(os, "register_at_fork"):  # not available on Windows
     os.register_at_fork(after_in_child=_reset_all_after_fork)
 
 
+def _canonical_for_digest(value: typing.Any) -> typing.Any:
+    """Stringify dict keys recursively so the payload can be sorted.
+
+    `json.dumps(sort_keys=True)` compares the original key objects, so a dict
+    mixing key types raises TypeError before serialisation. JSON stringifies
+    keys anyway, so doing it first loses nothing and makes any dict sortable.
+    """
+    if isinstance(value, dict):
+        return {str(k): _canonical_for_digest(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_canonical_for_digest(v) for v in value]
+    return value
+
+
 def cache_scope_digest(
     provider: str | None = None, extra_body: dict | None = None
 ) -> str:
@@ -88,7 +102,9 @@ def cache_scope_digest(
     if not provider and not extra_body:
         return "default"
     payload = json.dumps(
-        {"provider": provider or "", "extra_body": extra_body or {}},
+        _canonical_for_digest(
+            {"provider": provider or "", "extra_body": extra_body or {}}
+        ),
         sort_keys=True,
         default=repr,
     )
@@ -114,9 +130,13 @@ def generate_cache_key(
     # should not abort the whole batch.
     hash_text = hashlib.sha256(text.encode("utf-8", errors="surrogatepass")).hexdigest()
     scope = cache_scope_digest(provider, extra_body)
+    # `is not None` rather than truthiness: `dimensions=0` and `model=""` are
+    # distinct requests, and coalescing them onto the shared 'default' and
+    # 'unknown' segments makes them collide with unrelated entries.
     return (
-        f"{CACHE_KEY_VERSION}:{model or 'unknown'}:"
-        f"{dimensions or 'default'}:{scope}:{hash_text}"
+        f"{CACHE_KEY_VERSION}:{model if model is not None else 'unknown'}:"
+        f"{dimensions if dimensions is not None else 'default'}:"
+        f"{scope}:{hash_text}"
     )
 
 
@@ -565,7 +585,7 @@ class _OpenAIEmbeddingsModelBase:
 
     def _handle_token_limits(
         self, texts: typing.List[str], token_counts: typing.List[int]
-    ) -> typing.Tuple[typing.List[str], int]:
+    ) -> typing.Tuple[typing.List[str], typing.List[int]]:
         """
         Apply token limit policy to process texts within limits.
         Handles truncation, warnings, or errors based on configured policy.
@@ -575,7 +595,7 @@ class _OpenAIEmbeddingsModelBase:
             token_counts: Token count per text, already measured
 
         Returns:
-            Tuple of (processed texts, number of texts truncated)
+            Tuple of (processed texts, indices that were truncated)
 
         Raises:
             ValueError: If policy is "raise" and token limit exceeded
@@ -587,7 +607,7 @@ class _OpenAIEmbeddingsModelBase:
         ]
 
         if not over_limit_indices:
-            return texts, 0
+            return texts, []
 
         if self._token_limit_policy == "raise":
             max_tokens = max(token_counts[i] for i in over_limit_indices)
@@ -606,10 +626,10 @@ class _OpenAIEmbeddingsModelBase:
                 f"Sending to provider anyway. "
                 f"({len(over_limit_indices)} texts affected)"
             )
-            return texts, 0
+            return texts, []
 
         elif self._token_limit_policy == "ignore":
-            return texts, 0
+            return texts, []
 
         elif self._token_limit_policy == "truncate":
             processed_texts = texts.copy()
@@ -623,9 +643,9 @@ class _OpenAIEmbeddingsModelBase:
                 f"{self._effective_token_limit} tokens; input was dropped. "
                 "See usage.truncated_texts."
             )
-            return processed_texts, len(over_limit_indices)
+            return processed_texts, over_limit_indices
 
-        return texts, 0  # Fallback
+        return texts, []  # Fallback
 
     def _prepare_batches(
         self, texts: typing.List[str]
@@ -644,14 +664,18 @@ class _OpenAIEmbeddingsModelBase:
             Tuple of (processed texts, batches as index groups, truncated count)
         """
         token_counts = count_tokens_in_batch(texts, self._encoding)
-        safe_texts, truncated = self._handle_token_limits(texts, token_counts)
+        safe_texts, truncated_indices = self._handle_token_limits(texts, token_counts)
 
-        if truncated:
-            # Truncation caps a text at exactly the effective limit, so the
-            # counts can be adjusted without encoding everything a second time.
-            token_counts = [
-                min(count, self._effective_token_limit) for count in token_counts
-            ]
+        if truncated_indices:
+            # Re-measure the truncated texts rather than assuming they land on
+            # exactly the limit. Slicing at a token boundary can cut a
+            # multi-byte character in half, and decode() replaces the remnant
+            # with U+FFFD, which re-encodes to an extra token. Assuming the
+            # limit would undercount the real request. Only the changed texts
+            # are re-encoded.
+            token_counts = list(token_counts)
+            for index in truncated_indices:
+                token_counts[index] = len(self._encoding.encode(safe_texts[index]))
 
         batches: typing.List[typing.List[int]] = []
         current: typing.List[int] = []
@@ -669,7 +693,7 @@ class _OpenAIEmbeddingsModelBase:
         if current:
             batches.append(current)
 
-        return safe_texts, batches, truncated
+        return safe_texts, batches, len(truncated_indices)
 
     def _cache_key_for(self, text: str, model_settings: ModelSettings) -> str:
         """Cache key for one text under the current model and request scope."""
@@ -1182,6 +1206,11 @@ class AsyncOpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
 
         Each batch is cached as soon as it succeeds, and a failure cancels its
         siblings rather than leaving them to finish requests nobody will read.
+
+        A retrying batch holds its concurrency slot while it backs off. Rate
+        limits are usually global to the provider, so not dispatching new
+        requests while one is backing off is the intent — but it does mean a
+        rate-limit storm can fill every slot with waiting batches.
         """
         loop = asyncio.get_running_loop()
         # Token counting is CPU-bound and would otherwise stall the loop for
@@ -1215,8 +1244,14 @@ class AsyncOpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
                 for index, embedding in zip(group, batch_embeddings):
                     results[index] = embedding
 
-                await self._cache_set_many(
-                    [(keys[i], results[i]) for i in group]  # type: ignore[misc]
+                # Shielded: this batch has been billed. If a sibling fails
+                # while the write is still queued in the executor, cancelling
+                # the await would cancel the queued job too and lose work the
+                # caller already paid for.
+                await asyncio.shield(
+                    self._cache_set_many(
+                        [(keys[i], results[i]) for i in group]  # type: ignore[misc]
+                    )
                 )
                 return await self._resolve_usage_async(response, batch)
 
@@ -1229,7 +1264,18 @@ class AsyncOpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
         except BaseExceptionGroup as eg:
             # TaskGroup wraps failures in a group; callers expect the original
             # provider error (RateLimitError and friends), so unwrap the first.
-            raise eg.exceptions[0] from None
+            primary, *also_failed = eg.exceptions
+            for other in also_failed:
+                # Only one exception can be raised. Logging the rest keeps a
+                # second, differently-caused failure from vanishing entirely —
+                # `from None` below hides it from the traceback too.
+                logger.error(f"Additional batch failure: {other!r}")
+            while isinstance(primary, BaseExceptionGroup):
+                # A batch's own transport may itself raise a group. Keep
+                # unwrapping so the caller gets a concrete error their
+                # `except openai.RateLimitError` can actually match.
+                primary = primary.exceptions[0]
+            raise primary from None
 
         total_input_tokens = sum(task.result().input_tokens for task in tasks)
         total_tokens = sum(task.result().total_tokens for task in tasks)

@@ -819,3 +819,134 @@ def test_forked_child_can_still_use_the_cache(tmp_path):
         model.get_embeddings(["child text"], model_settings=settings)
 
     assert run_in_fork(child) == 0
+
+
+# --- found in pre-release adversarial review of 0.6.0 ---
+
+
+def test_extra_body_with_mixed_key_types_does_not_crash():
+    """json.dumps(sort_keys=True) compares the original key objects."""
+    assert cache_scope_digest("https://a/", {"a": 1, 1: "x"})
+
+
+def test_mixed_key_extra_body_survives_a_full_call():
+    """The key is built before the request, so this crashed even with no cache."""
+    calls: list = []
+    model = sync_model(recording_create(calls))
+
+    model.get_embeddings(
+        ["hi"], model_settings=ModelSettings(extra_body={"a": 1, 1: "x"})
+    )
+
+    assert calls == [["hi"]]
+
+
+def test_zero_dimensions_does_not_collide_with_none():
+    """`dimensions or 'default'` folded 0 onto the None segment."""
+    assert generate_cache_key(model="m", dimensions=0, text="t") != generate_cache_key(
+        model="m", dimensions=None, text="t"
+    )
+
+
+def test_empty_model_does_not_collide_with_the_unknown_literal():
+    assert generate_cache_key(model="", text="t") != generate_cache_key(
+        model="unknown", text="t"
+    )
+
+
+def test_ordinary_keys_kept_their_shape():
+    """The falsy-coalescing fix must not invalidate normal cache entries."""
+    key = generate_cache_key(model="text-embedding-3-small", dimensions=512, text="t")
+
+    assert key.startswith("v2:text-embedding-3-small:512:default:")
+
+
+@pytest.mark.asyncio
+async def test_a_second_differing_batch_failure_is_logged(caplog):
+    """Only one exception can be raised; the other must not vanish silently."""
+
+    class ErrorA(Exception):
+        pass
+
+    class ErrorB(Exception):
+        pass
+
+    async def create(input, **kwargs):
+        await asyncio.sleep(0)
+        raise ErrorA("a failed") if input[0] == "a" else ErrorB("b failed")
+
+    async with async_model(create, max_batch_size=1, max_retries=0) as model:
+        with caplog.at_level("ERROR"):
+            with pytest.raises((ErrorA, ErrorB)):
+                await model.get_embeddings(["a", "b"], model_settings=ModelSettings())
+
+    assert any("Additional batch failure" in r.message for r in caplog.records)
+
+
+@pytest.mark.asyncio
+async def test_a_nested_exception_group_is_unwrapped_to_a_concrete_error():
+    """A caller's `except SomeError` cannot match an ExceptionGroup."""
+
+    class InnerA(Exception):
+        pass
+
+    async def create(input, **kwargs):
+        raise ExceptionGroup("transport failure", [InnerA("inner"), InnerA("other")])
+
+    async with async_model(create, max_retries=0) as model:
+        with pytest.raises(InnerA):
+            await model.get_embeddings(["a"], model_settings=ModelSettings())
+
+
+def test_truncated_text_is_re_measured_not_assumed():
+    """Cutting mid-codepoint makes decode() insert U+FFFD, costing a token.
+
+    Assuming truncation lands exactly on the limit undercounts the request,
+    letting the bin-packer overfill a batch past max_tokens_a_request.
+    """
+    model = sync_model(
+        recording_create([]),
+        max_input_tokens=4,
+        token_limit_usage_percent=100,
+        max_tokens_a_request=8,
+    )
+    texts = ["नमस्ते दुनिया", "नमस्ते दुनिया!"]
+
+    safe_texts, batches, truncated = model._prepare_batches(texts)
+
+    assert truncated == 2
+    encoding = model._encoding
+    for group in batches:
+        real_tokens = sum(len(encoding.encode(safe_texts[i])) for i in group)
+        assert real_tokens <= 8, f"batch {group} sends {real_tokens} tokens, budget 8"
+
+
+@pytest.mark.asyncio
+async def test_a_billed_batch_is_cached_even_if_a_sibling_fails(tmp_path):
+    """A billed batch must be persisted even when a sibling fails.
+
+    Guard, not a discriminating regression test: the bug it relates to needs
+    the write to still be QUEUED in a saturated executor when cancellation
+    arrives, which takes deliberate timing to force (see
+    tmp/verify_batch/attack5d_final.py). This asserts the property holds in
+    the ordinary case; the shield is what makes it hold in the raced one.
+    """
+    cache = diskcache.Cache(str(tmp_path / "c"))
+
+    async def create(input, **kwargs):
+        if input[0] == "bad":
+            await asyncio.sleep(0.02)
+            raise RuntimeError("bad batch exploded")
+        return build_response(len(input))
+
+    model = async_model(create, cache=cache, max_batch_size=1, executor_max_workers=1)
+    try:
+        with pytest.raises(RuntimeError):
+            await model.get_embeddings(
+                ["good", "bad"], model_settings=ModelSettings(dimensions=3)
+            )
+        await asyncio.sleep(0.1)  # let any shielded write finish
+    finally:
+        await model.aclose()
+
+    assert len(cache) == 1, "the successful batch was billed and must be persisted"

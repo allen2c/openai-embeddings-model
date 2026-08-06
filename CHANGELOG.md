@@ -44,6 +44,11 @@ the cache key layout changed.
 - **`extra_body` that cannot be serialised raises `ValueError`** at the call
   site instead of failing from inside the HTTP layer.
 
+- **`ModelResponse` is frozen.** Its decoded array is cached on first access
+  and never invalidated, so reassigning `output` left `to_numpy()` returning
+  vectors for text the response no longer held. Code that assigns to
+  `response.output` or `response.usage` now raises `pydantic.ValidationError`.
+
 ### Fixed
 
 - **Requests are no longer built past the provider's token limit.**
@@ -75,14 +80,30 @@ the cache key layout changed.
 - **Non-OpenAI models warn once** that token counts, and therefore truncation
   points, are approximate, rather than silently using gpt-4o's tokenizer.
   A non-`str` model no longer raises an uncaught `AttributeError`.
+- **Cache keys no longer collide on falsy values.** `dimensions=0` shared a
+  key segment with `dimensions=None`, and `model=""` with the literal
+  `"unknown"`, so unrelated entries could be served for one another.
+- **`extra_body` with mixed key types no longer crashes the call.** Building
+  the cache scope digest sorted the original key objects, so a dict mixing
+  `str` and `int` keys raised `TypeError` — even with caching disabled, since
+  the key is built before the request.
+- **A second, differently-caused batch failure is no longer lost.** Only one
+  exception can be raised, but the others are now logged; previously they
+  vanished from both the raised error and the traceback.
+- **A nested `ExceptionGroup` from a batch is unwrapped to a concrete error**,
+  so `except openai.RateLimitError` matches instead of silently missing.
+- **Truncated texts are re-measured before batching.** Cutting mid-codepoint
+  makes `decode()` insert U+FFFD, which re-encodes to an extra token;
+  assuming truncation landed exactly on the limit undercounted the request
+  and could overfill a batch past `max_tokens_a_request`.
+- **The async cache write is shielded from sibling cancellation**, so a batch
+  that was billed is persisted even if another batch fails while its write is
+  still queued.
 - **Forked children rebuild what the fork invalidated.** Models register an
   `os.register_at_fork` hook that recreates the thread pool, whose workers do
   not survive a fork, and drops the inherited sqlite connection. Constructing
   a model before forking — the gunicorn `preload_app` shape — previously left
   the child submitting work to a pool with no threads.
-- **`ModelResponse` is frozen.** Its decoded array is cached on first access
-  and never invalidated, so reassigning `output` left `to_numpy()` returning
-  vectors for text the response no longer held.
 
 ### Added
 
@@ -99,7 +120,9 @@ the cache key layout changed.
 ### Changed
 
 - Async cache reads and writes are batched into one executor job each, instead
-  of one cross-thread round trip per key — measured ~35x faster on 2000 keys.
+  of one cross-thread round trip per key. The speedup scales with key count
+  and varies by machine; measurements on 2000 keys ranged from roughly 5x to
+  35x.
 - Async token counting runs in the executor rather than on the event loop,
   which it previously stalled for the duration of the call (~620ms for 2048
   texts).

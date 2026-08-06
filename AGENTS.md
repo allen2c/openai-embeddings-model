@@ -59,3 +59,7 @@ make format-all                               # isort + black
 - Models register with `os.register_at_fork` so a forked child rebuilds its
   thread pool and drops the inherited sqlite connection. Anything else added
   to a model that does not survive a fork belongs in `_reset_after_fork`.
+- A `ModelResponse` cannot be deep-copied or pickled once `to_numpy()`,
+  `to_python()`, or `as_similarity_response()` has run — the cached
+  `_decoded_bytes` is a `memoryview`. Pass `to_python()` output across a
+  process boundary instead. Long-standing, not specific to any release.

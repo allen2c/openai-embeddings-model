@@ -155,7 +155,7 @@ Disk-based caching prevents redundant API calls. Cache hits are free and tracked
 import diskcache
 from openai_embeddings_model import get_default_cache
 
-# Use default XDG cache directory
+# Default location: ./.cache/embeddings.cache, relative to the working directory
 cache = get_default_cache()
 
 # Or specify a path
@@ -216,7 +216,7 @@ so passing the same string many times costs one slot, not many.
 | `max_retries`               | `int`                          | `2`          | Retries for rate limits and transient failures     |
 | `retry_base_delay`          | `float`                        | `1.0`        | Seconds before the first retry, doubling each time |
 | `executor_max_workers`      | `int \| None`                  | `None`       | Async only — thread pool size                      |
-| `max_concurrent_batches`    | `int`                          | `5`          | Async only — batches in flight at once             |
+| `max_concurrent_batches`    | `int`                          | `5`          | Async only — batches in flight at once. A batch keeps its slot while backing off, so a rate-limit storm can fill them all |
 
 ### Methods
 

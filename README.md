@@ -113,7 +113,16 @@ model = OpenAIEmbeddingsModel(
 )
 ```
 
-Cache hits are tracked in `response.usage.cache_hits` and never re-billed.
+Cache hits are tracked in `response.usage.cache_hits` and never re-billed. The
+cache key covers the model name, `dimensions`, the text, the client's
+`base_url`, and `extra_body`, so different providers can share one directory
+safely. Entries that do not decode into an embedding of the expected shape are
+discarded and re-fetched.
+
+> **0.6.0 invalidates existing caches.** The key layout changed, so entries
+> written by 0.5.x are ignored rather than misread, and the first run after
+> upgrading re-embeds everything. Old entries are not deleted — clear the
+> directory yourself once you no longer need to roll back.
 
 ## API Reference
 
@@ -135,18 +144,33 @@ Cache hits are tracked in `response.usage.cache_hits` and never re-billed.
 
 ### ModelSettings
 
-| Parameter    | Type            | Default | Description               |
-|--------------|-----------------|---------|---------------------------|
-| `dimensions` | `int \| None`   | `None`  | Custom output dimensions  |
-| `timeout`    | `float \| None` | `None`  | Request timeout (seconds) |
+| Parameter    | Type            | Default | Description                                          |
+|--------------|-----------------|---------|------------------------------------------------------|
+| `dimensions` | `int \| None`   | `None`  | Custom output dimensions                             |
+| `timeout`    | `float \| None` | `None`  | Request timeout (seconds)                            |
+| `extra_body` | `dict \| None`  | `None`  | Provider-specific parameters merged into the request |
+
+### Constructor Parameters
+
+Beyond `model` and `openai_client`: `cache`, `encoding`, `max_batch_size`,
+`max_input_tokens`, `max_tokens_a_request`, `token_limit_policy`,
+`token_limit_usage_percent`, `dimensions_parameter`, `max_retries`,
+`retry_base_delay`, and — async only — `executor_max_workers` and
+`max_concurrent_batches`. See the
+[documentation](https://allen2c.github.io/openai-embeddings-model/) for types
+and defaults.
 
 ### Responses
 
 **`ModelResponse`**
 
-- `to_numpy()` → `NDArray[np.float32]`
+- `to_numpy()` → `NDArray[np.float32]` — a writable copy
 - `to_python()` → `List[List[float]]`
 - `usage.input_tokens`, `usage.total_tokens`, `usage.cache_hits`
+- `usage.truncated_texts` — texts shortened to fit the token limit; non-zero
+  means input was dropped before embedding
+
+`ModelResponse` is immutable.
 
 **`SimilarityResponse`**
 
