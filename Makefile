@@ -1,31 +1,13 @@
 # Development
-format-all:
-	@isort . \
-		--skip setup.py \
-		--skip .venv \
-		--skip build \
-		--skip dist \
-		--skip __pycache__ \
-		--skip docs \
-		--skip static \
-		--skip .conda
-	@black . \
-		--exclude setup.py \
-		--exclude .venv \
-		--exclude build \
-		--exclude dist \
-		--exclude __pycache__ \
-		--exclude docs \
-		--exclude static \
-		--exclude .conda
+fmt:
+	@isort openai_embeddings_model tests
+	@black openai_embeddings_model tests
 
-install-all:
+install:
 	poetry install --all-extras --all-groups
 
 update-all:
 	poetry update
-	poetry export --without-hashes -f requirements.txt --output requirements.txt
-	poetry export --without-hashes --all-extras --all-groups -f requirements.txt --output requirements-all.txt
 
 mkdocs:
 	mkdocs serve
