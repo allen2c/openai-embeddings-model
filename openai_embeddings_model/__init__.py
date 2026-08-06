@@ -19,7 +19,16 @@ import tiktoken
 
 from .embedding_model import EmbeddingModel
 
-__all__ = ["ModelSettings", "OpenAIEmbeddingsModel", "AsyncOpenAIEmbeddingsModel"]
+__all__ = [
+    "AsyncOpenAIEmbeddingsModel",
+    "EmbeddingModel",
+    "ModelResponse",
+    "ModelSettings",
+    "OpenAIEmbeddingsModel",
+    "SimilarityResponse",
+    "SimilarityResult",
+    "Usage",
+]
 __version__ = pathlib.Path(__file__).parent.joinpath("VERSION").read_text().strip()
 
 logger = logging.getLogger(__name__)
@@ -27,7 +36,9 @@ logger = logging.getLogger(__name__)
 # Constants
 MAX_BATCH_SIZE = 2048  # OpenAI's batch size limit
 MAX_INPUT_TOKENS = 8191  # Maximum tokens per input
-MAX_TOKENS_A_REQUEST = 300_000  # Maximum tokens per request
+# Maximum tokens per request. Not yet enforced: batches are split by item
+# count only, so a batch of long texts can still exceed this. See CHANGELOG.
+MAX_TOKENS_A_REQUEST = 300_000
 
 
 @functools.lru_cache(maxsize=MAX_BATCH_SIZE)

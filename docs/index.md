@@ -168,6 +168,20 @@ model = OpenAIEmbeddingsModel(
 )
 ```
 
+Entries are validated on read. Anything that does not decode into an embedding
+of the expected shape is discarded and re-fetched, so a cache directory shared
+with another tool cannot feed you a malformed vector.
+
+!!! warning "One cache directory per provider"
+
+    The cache key is derived from the model name, `dimensions`, and the text —
+    **not** from the client's `base_url` or from `extra_body`. Two models that
+    share a cache directory and a model name will therefore share vectors even
+    if they point at different providers, and requests that differ only in
+    `extra_body` (such as Voyage's `output_dimension`) will collide.
+
+    Give each provider its own cache directory.
+
 ---
 
 ## API Reference
@@ -201,19 +215,20 @@ model = OpenAIEmbeddingsModel(
 
 ### ModelSettings
 
-| Parameter    | Type            | Default | Description               |
-|--------------|-----------------|---------|---------------------------|
-| `dimensions` | `int \| None`   | `None`  | Custom output dimensions  |
-| `timeout`    | `float \| None` | `None`  | Request timeout (seconds) |
+| Parameter    | Type            | Default | Description                                        |
+|--------------|-----------------|---------|----------------------------------------------------|
+| `dimensions` | `int \| None`   | `None`  | Custom output dimensions                           |
+| `timeout`    | `float \| None` | `None`  | Request timeout (seconds)                          |
+| `extra_body` | `dict \| None`  | `None`  | Provider-specific parameters merged into the request |
 
 ### Response Types
 
 **`ModelResponse`**
 
-| Attribute / Method   | Description                               |
-|----------------------|-------------------------------------------|
-| `to_numpy()`         | `NDArray[np.float32]` — shape `(n, dims)` |
-| `to_python()`        | `List[List[float]]`                       |
+| Attribute / Method   | Description                                                  |
+|----------------------|--------------------------------------------------------------|
+| `to_numpy()`         | `NDArray[np.float32]` — shape `(n, dims)`, a writable copy    |
+| `to_python()`        | `List[List[float]]`                                          |
 | `usage.input_tokens` | Tokens from input texts                   |
 | `usage.total_tokens` | Total tokens billed                       |
 | `usage.cache_hits`   | Number of cache hits                      |
