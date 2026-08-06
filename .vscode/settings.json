@@ -1,7 +1,11 @@
 {
   "editor.formatOnSave": true,
   "[python]": {
-    "editor.defaultFormatter": "ms-python.black-formatter"
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.rulers": [120],
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": "explicit"
+    }
   },
   "[yml]": {
     "editor.tabSize": 2,
@@ -45,7 +49,9 @@
   "vscode-yaml-sort.quotingType": "\"",
   "evenBetterToml.formatter.reorderKeys": true,
   "evenBetterToml.formatter.reorderArrays": true,
-  "flake8.args": ["--ignore=E203,E704,W503", "--max-line-length=88"],
+  "ruff.importStrategy": "fromEnvironment",
+  "black-formatter.importStrategy": "fromEnvironment",
+  "isort.importStrategy": "fromEnvironment",
   "yaml.schemas": {
     "https://squidfunk.github.io/mkdocs-material/schema.json": "mkdocs.yml"
   },

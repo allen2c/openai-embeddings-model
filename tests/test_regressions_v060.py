@@ -40,6 +40,15 @@ MODEL = "text-embedding-3-small"
 DIM3 = [1.0, 0.0, 0.0]
 
 
+def cache_len(cache: diskcache.Cache) -> int:
+    """Count the entries in a cache.
+
+    `diskcache` ships no annotations, so its `__len__` infers as `Any | Constant`
+    and plain `len(cache)` fails the `Sized` protocol under a type checker.
+    """
+    return typing.cast(int, cache.__len__())
+
+
 def build_response(n: int, *, usage: OpenAIUsage | None = None):
     return CreateEmbeddingResponse.model_construct(
         data=[
@@ -57,9 +66,7 @@ def build_response(n: int, *, usage: OpenAIUsage | None = None):
 
 
 def rate_limit_error() -> openai.RateLimitError:
-    response = httpx.Response(
-        429, request=httpx.Request("POST", "http://localhost:1/embeddings")
-    )
+    response = httpx.Response(429, request=httpx.Request("POST", "http://localhost:1/embeddings"))
     return openai.RateLimitError("slow down", response=response, body=None)
 
 
@@ -92,20 +99,14 @@ def test_cache_key_is_versioned():
 
 
 def test_extra_body_changes_the_cache_key():
-    a = generate_cache_key(
-        model="voyage-3", text="hi", extra_body={"output_dimension": 512}
-    )
-    b = generate_cache_key(
-        model="voyage-3", text="hi", extra_body={"output_dimension": 1024}
-    )
+    a = generate_cache_key(model="voyage-3", text="hi", extra_body={"output_dimension": 512})
+    b = generate_cache_key(model="voyage-3", text="hi", extra_body={"output_dimension": 1024})
 
     assert a != b
 
 
 def test_provider_changes_the_cache_key():
-    a = generate_cache_key(
-        model=MODEL, text="hi", provider="https://api.openai.com/v1/"
-    )
+    a = generate_cache_key(model=MODEL, text="hi", provider="https://api.openai.com/v1/")
     b = generate_cache_key(model=MODEL, text="hi", provider="https://example.test/v1/")
 
     assert a != b
@@ -113,9 +114,7 @@ def test_provider_changes_the_cache_key():
 
 def test_same_scope_produces_the_same_key():
     def key() -> str:
-        return generate_cache_key(
-            model=MODEL, text="hi", provider="https://a/", extra_body={"b": 1}
-        )
+        return generate_cache_key(model=MODEL, text="hi", provider="https://a/", extra_body={"b": 1})
 
     assert key() == key()
 
@@ -137,12 +136,8 @@ def test_two_providers_sharing_a_cache_do_not_share_vectors(tmp_path):
     calls_a: list = []
     calls_b: list = []
 
-    model_a = sync_model(
-        recording_create(calls_a), base_url="http://provider-a:1", cache=cache
-    )
-    model_b = sync_model(
-        recording_create(calls_b), base_url="http://provider-b:1", cache=cache
-    )
+    model_a = sync_model(recording_create(calls_a), base_url="http://provider-a:1", cache=cache)
+    model_b = sync_model(recording_create(calls_b), base_url="http://provider-b:1", cache=cache)
 
     settings = ModelSettings(dimensions=3)
     model_a.get_embeddings(["shared text"], model_settings=settings)
@@ -157,9 +152,7 @@ def test_differing_extra_body_does_not_share_vectors(tmp_path):
     calls: list = []
     model = sync_model(recording_create(calls), cache=cache)
 
-    model.get_embeddings(
-        ["t"], model_settings=ModelSettings(dimensions=3, extra_body={"task": "query"})
-    )
+    model.get_embeddings(["t"], model_settings=ModelSettings(dimensions=3, extra_body={"task": "query"}))
     model.get_embeddings(
         ["t"],
         model_settings=ModelSettings(dimensions=3, extra_body={"task": "document"}),
@@ -267,9 +260,7 @@ def test_batches_respect_the_token_budget():
 def test_a_single_oversized_text_still_goes_out_alone():
     """It cannot be split further, so it must not deadlock the batcher."""
     calls: list = []
-    model = sync_model(
-        recording_create(calls), max_tokens_a_request=10, token_limit_policy="ignore"
-    )
+    model = sync_model(recording_create(calls), max_tokens_a_request=10, token_limit_policy="ignore")
 
     model.get_embeddings([" ".join(["word"] * 100)], model_settings=ModelSettings())
 
@@ -289,13 +280,9 @@ def test_item_count_limit_still_applies():
 
 
 def test_truncation_is_reported_in_usage():
-    model = sync_model(
-        recording_create([]), max_input_tokens=20, token_limit_usage_percent=50
-    )
+    model = sync_model(recording_create([]), max_input_tokens=20, token_limit_usage_percent=50)
 
-    res = model.get_embeddings(
-        [" ".join(["word"] * 200), "short"], model_settings=ModelSettings()
-    )
+    res = model.get_embeddings([" ".join(["word"] * 200), "short"], model_settings=ModelSettings())
 
     assert res.usage.truncated_texts == 1
 
@@ -324,11 +311,9 @@ def test_successful_batches_are_cached_even_when_a_later_batch_fails(tmp_path):
     model = sync_model(create, cache=cache, max_batch_size=2)
 
     with pytest.raises(RuntimeError):
-        model.get_embeddings(
-            ["a", "b", "c", "d"], model_settings=ModelSettings(dimensions=3)
-        )
+        model.get_embeddings(["a", "b", "c", "d"], model_settings=ModelSettings(dimensions=3))
 
-    assert len(cache) == 2, "batch 1 was paid for and must survive the failure"
+    assert cache_len(cache) == 2, "batch 1 was paid for and must survive the failure"
 
 
 def test_rate_limit_is_retried_with_backoff():
@@ -483,9 +468,7 @@ def test_repeated_texts_are_embedded_once():
     calls: list = []
     model = sync_model(recording_create(calls))
 
-    res = model.get_embeddings(
-        ["a", "b", "a", "a", "b"], model_settings=ModelSettings()
-    )
+    res = model.get_embeddings(["a", "b", "a", "a", "b"], model_settings=ModelSettings())
 
     assert calls == [["a", "b"]], "each distinct text costs one slot, not one per copy"
     assert len(res.to_python()) == 5
@@ -535,9 +518,7 @@ async def test_repeated_texts_are_embedded_once_async():
         return build_response(len(input))
 
     async with async_model(create) as model:
-        res = await model.get_embeddings(
-            ["a", "b", "a"], model_settings=ModelSettings()
-        )
+        res = await model.get_embeddings(["a", "b", "a"], model_settings=ModelSettings())
 
     assert calls == [["a", "b"]]
     assert len(res.to_python()) == 3
@@ -586,15 +567,11 @@ async def test_cache_reads_are_batched_into_one_executor_job(tmp_path):
 
     try:
         model._executor.submit = counting_submit  # type: ignore[method-assign]
-        await model.get_embeddings(
-            [f"t{i}" for i in range(50)], model_settings=ModelSettings(dimensions=3)
-        )
+        await model.get_embeddings([f"t{i}" for i in range(50)], model_settings=ModelSettings(dimensions=3))
     finally:
         await model.aclose()
 
-    assert (
-        len(submits) < 10
-    ), f"50 texts should not mean 50+ executor round trips, saw {len(submits)}"
+    assert len(submits) < 10, f"50 texts should not mean 50+ executor round trips, saw {len(submits)}"
 
 
 @pytest.mark.asyncio
@@ -647,9 +624,7 @@ async def test_async_batches_respect_the_token_budget():
         calls.append(list(input))
         return build_response(len(input))
 
-    async with async_model(
-        create, max_tokens_a_request=100, token_limit_policy="ignore"
-    ) as model:
+    async with async_model(create, max_tokens_a_request=100, token_limit_policy="ignore") as model:
         texts = [f"t{i} " + " ".join(["word"] * 40) for i in range(10)]
         await model.get_embeddings(texts, model_settings=ModelSettings())
 
@@ -667,9 +642,7 @@ def test_output_order_matches_input_order_across_batches():
         return CreateEmbeddingResponse.model_construct(
             data=[
                 Embedding.model_construct(
-                    embedding=py_float_list_to_b64_np32_array(
-                        [float(int(t[1:])), 0.0, 0.0]
-                    ),
+                    embedding=py_float_list_to_b64_np32_array([float(int(t[1:])), 0.0, 0.0]),
                     index=i,
                     object="embedding",
                 )
@@ -696,9 +669,7 @@ async def test_output_order_survives_concurrent_batches():
         return CreateEmbeddingResponse.model_construct(
             data=[
                 Embedding.model_construct(
-                    embedding=py_float_list_to_b64_np32_array(
-                        [float(int(t[1:])), 0.0, 0.0]
-                    ),
+                    embedding=py_float_list_to_b64_np32_array([float(int(t[1:])), 0.0, 0.0]),
                     index=i,
                     object="embedding",
                 )
@@ -810,12 +781,7 @@ def test_forked_child_can_still_use_the_cache(tmp_path):
 
     def child():
         # Reads a parent-written entry and writes a new one of its own.
-        assert (
-            model.get_embeddings(
-                ["parent text"], model_settings=settings
-            ).usage.cache_hits
-            == 1
-        )
+        assert model.get_embeddings(["parent text"], model_settings=settings).usage.cache_hits == 1
         model.get_embeddings(["child text"], model_settings=settings)
 
     assert run_in_fork(child) == 0
@@ -834,9 +800,7 @@ def test_mixed_key_extra_body_survives_a_full_call():
     calls: list = []
     model = sync_model(recording_create(calls))
 
-    model.get_embeddings(
-        ["hi"], model_settings=ModelSettings(extra_body={"a": 1, 1: "x"})
-    )
+    model.get_embeddings(["hi"], model_settings=ModelSettings(extra_body={"a": 1, 1: "x"}))
 
     assert calls == [["hi"]]
 
@@ -849,9 +813,7 @@ def test_zero_dimensions_does_not_collide_with_none():
 
 
 def test_empty_model_does_not_collide_with_the_unknown_literal():
-    assert generate_cache_key(model="", text="t") != generate_cache_key(
-        model="unknown", text="t"
-    )
+    assert generate_cache_key(model="", text="t") != generate_cache_key(model="unknown", text="t")
 
 
 def test_ordinary_keys_kept_their_shape():
@@ -942,11 +904,9 @@ async def test_a_billed_batch_is_cached_even_if_a_sibling_fails(tmp_path):
     model = async_model(create, cache=cache, max_batch_size=1, executor_max_workers=1)
     try:
         with pytest.raises(RuntimeError):
-            await model.get_embeddings(
-                ["good", "bad"], model_settings=ModelSettings(dimensions=3)
-            )
+            await model.get_embeddings(["good", "bad"], model_settings=ModelSettings(dimensions=3))
         await asyncio.sleep(0.1)  # let any shielded write finish
     finally:
         await model.aclose()
 
-    assert len(cache) == 1, "the successful batch was billed and must be persisted"
+    assert cache_len(cache) == 1, "the successful batch was billed and must be persisted"

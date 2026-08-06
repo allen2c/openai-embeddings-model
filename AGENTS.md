@@ -22,7 +22,8 @@ covers what is not in the docs.
 ```bash
 poetry install --all-extras --all-groups
 python -m pytest tests/test_regressions*.py   # offline, always safe to run
-make format-all                               # isort + black
+make fmt                                      # isort, black, ruff, gitleaks
+pyright                                       # must stay at zero errors
 ```
 
 - Add offline tests to the current release's `tests/test_regressions*.py`.
@@ -34,7 +35,9 @@ make format-all                               # isort + black
   API call.
 - The legacy tests share the repo's real `./.cache` directory. Use `tmp_path`
   for anything new.
-- Style: black, isort (`profile = "black"`), flake8 at 88 columns.
+- Style: 120 columns, black + isort (`profile = "black"`), linted by ruff.
+  Every setting lives in `pyproject.toml`; there is no flake8 any more. A
+  `# noqa` needs a comment saying why.
 
 ## Before committing
 

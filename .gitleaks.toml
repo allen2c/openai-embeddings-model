@@ -1,0 +1,14 @@
+# Gitleaks configuration.
+#
+# `make fmt` runs `gitleaks dir`, which walks the working tree and so also sees
+# files git ignores. The only one that carries real credentials is the
+# developer's local `.env` — it is listed in `.gitignore`, is never tracked,
+# and `.env.example` is what ships instead.
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Local, git-ignored developer environment file"
+paths = ['''(^|/)\.env$''']
+targetRules = []

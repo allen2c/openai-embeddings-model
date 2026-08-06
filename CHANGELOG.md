@@ -128,6 +128,15 @@ the cache key layout changed.
   texts).
 - `generate_cache_key` no longer caches on the raw text, which had been
   pinning up to 2048 full documents in memory for the life of the process.
+- **`str_or_none` is no longer a dependency.** It was declared as a runtime
+  requirement but only ever used by the test suite, so installing this package
+  pulled it in for nothing. Nothing in the public API changes.
+
+### Internal
+
+- Line length is now 120. Formatting is black + isort, linting is ruff, and
+  every setting lives in `pyproject.toml`; the unused flake8 configuration is
+  gone. `make fmt` runs all of it plus a gitleaks scan, and `pyright` is clean.
 
 ## [0.5.2] - 2026-08-06
 

@@ -7,7 +7,6 @@ from pathlib import Path
 import diskcache
 import openai
 import pytest
-from str_or_none import str_or_none
 
 LOGGING_VERBOSE = False
 
@@ -49,11 +48,11 @@ def openai_client_async():
 
 @pytest.fixture(scope="module")
 def gemini_client_async():
-    GEMINI_API_KEY = str_or_none(os.getenv("GEMINI_API_KEY"))
-    if not GEMINI_API_KEY:
+    gemini_api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    if not gemini_api_key:
         raise ValueError("GEMINI_API_KEY is not set")
 
     return openai.AsyncOpenAI(
         base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-        api_key=GEMINI_API_KEY,
+        api_key=gemini_api_key,
     )

@@ -89,9 +89,7 @@ def _canonical_for_digest(value: typing.Any) -> typing.Any:
     return value
 
 
-def cache_scope_digest(
-    provider: str | None = None, extra_body: dict | None = None
-) -> str:
+def cache_scope_digest(provider: str | None = None, extra_body: dict | None = None) -> str:
     """Digest the request context that changes an embedding but not its text.
 
     Two requests for the same text under the same model can still produce
@@ -102,9 +100,7 @@ def cache_scope_digest(
     if not provider and not extra_body:
         return "default"
     payload = json.dumps(
-        _canonical_for_digest(
-            {"provider": provider or "", "extra_body": extra_body or {}}
-        ),
+        _canonical_for_digest({"provider": provider or "", "extra_body": extra_body or {}}),
         sort_keys=True,
         default=repr,
     )
@@ -140,7 +136,7 @@ def generate_cache_key(
     )
 
 
-def validate_input(input: str | typing.List[str]) -> typing.List[str]:
+def validate_input(input: str | list[str]) -> list[str]:
     """Validate and normalize input, converting strings to lists.
 
     Raises ValueError for empty inputs, TypeError for invalid types.
@@ -169,20 +165,18 @@ def get_default_cache() -> diskcache.Cache:
     return diskcache.Cache(directory="./.cache/embeddings.cache")
 
 
-def py_float_list_to_b64_np32_array(float_list: typing.List[float]) -> str:
+def py_float_list_to_b64_np32_array(float_list: list[float]) -> str:
     """Convert a list of python floats to base64-encoded numpy float32 array."""
     array = np.array(float_list, dtype=np.float32)
     return base64.b64encode(array.tobytes()).decode("utf-8")
 
 
-def b64_np32_array_to_py_float_list(b64_np32_array: str) -> typing.List[float]:
+def b64_np32_array_to_py_float_list(b64_np32_array: str) -> list[float]:
     """Convert a base64-encoded numpy float32 array to a list of python floats."""
     return np.frombuffer(base64.b64decode(b64_np32_array), dtype=np.float32).tolist()
 
 
-def validate_cached_embedding(
-    key: str, cached: typing.Any, expected_dimensions: int | None = None
-) -> str | None:
+def validate_cached_embedding(key: str, cached: typing.Any, expected_dimensions: int | None = None) -> str | None:
     """Validate a raw cache entry, returning None when it is unusable.
 
     A cache directory can accumulate entries written by another tool or an
@@ -195,10 +189,7 @@ def validate_cached_embedding(
         return None
 
     if not isinstance(cached, str):
-        logger.warning(
-            f"Discarding cache entry {key}: expected str, got "
-            f"{type(cached).__name__}"
-        )
+        logger.warning(f"Discarding cache entry {key}: expected str, got {type(cached).__name__}")
         return None
 
     try:
@@ -208,16 +199,12 @@ def validate_cached_embedding(
         return None
 
     if not raw or len(raw) % 4 != 0:
-        logger.warning(
-            f"Discarding cache entry {key}: {len(raw)} bytes is not a "
-            "positive multiple of 4"
-        )
+        logger.warning(f"Discarding cache entry {key}: {len(raw)} bytes is not a positive multiple of 4")
         return None
 
     if expected_dimensions is not None and len(raw) // 4 != expected_dimensions:
         logger.warning(
-            f"Discarding cache entry {key}: decodes to {len(raw) // 4} "
-            f"dimensions, expected {expected_dimensions}"
+            f"Discarding cache entry {key}: decodes to {len(raw) // 4} dimensions, expected {expected_dimensions}"
         )
         return None
 
@@ -230,7 +217,7 @@ def validate_cached_embedding(
 
 def extract_ordered_embeddings(
     data: typing.Sequence[typing.Any],
-) -> typing.List[str]:
+) -> list[str]:
     """Extract base64 embeddings from response data, ordered by provider index.
 
     OpenAI documents that `data` comes back in request order, but proxies and
@@ -241,12 +228,7 @@ def extract_ordered_embeddings(
     if items and all(isinstance(getattr(d, "index", None), int) for d in items):
         items.sort(key=lambda d: d.index)
     return [
-        (
-            d.embedding
-            if isinstance(d.embedding, str)
-            else py_float_list_to_b64_np32_array(d.embedding)
-        )
-        for d in items
+        (d.embedding if isinstance(d.embedding, str) else py_float_list_to_b64_np32_array(d.embedding)) for d in items
     ]
 
 
@@ -262,7 +244,7 @@ RETRYABLE_ERRORS = (
 
 def deduplicate_texts(
     texts: typing.Sequence[str],
-) -> typing.Tuple[typing.List[str], typing.List[int]]:
+) -> tuple[list[str], list[int]]:
     """Collapse repeated texts, keeping first-seen order.
 
     Identical texts have identical embeddings, so sending each copy is paying
@@ -271,9 +253,9 @@ def deduplicate_texts(
     Returns:
         Tuple of (unique texts, slot in `unique` for each original text)
     """
-    unique: typing.List[str] = []
-    slot_of: typing.Dict[str, int] = {}
-    slots: typing.List[int] = []
+    unique: list[str] = []
+    slot_of: dict[str, int] = {}
+    slots: list[int] = []
 
     for text in texts:
         slot = slot_of.get(text)
@@ -291,9 +273,7 @@ def count_tokens(text: str, encoding: tiktoken.Encoding) -> int:
     return len(encoding.encode(text))
 
 
-def count_tokens_in_batch(
-    texts: typing.List[str], encoding: tiktoken.Encoding
-) -> typing.List[int]:
+def count_tokens_in_batch(texts: list[str], encoding: tiktoken.Encoding) -> list[int]:
     """Count the number of tokens in a batch of texts using a given encoding."""
     token_sequences = encoding.encode_batch(texts)
     return [len(tokens) for tokens in token_sequences]
@@ -352,9 +332,7 @@ class ModelSettings(pydantic.BaseModel):
         try:
             model_type = EmbeddingModelType(model_str)
         except ValueError:
-            logger.debug(
-                f"Unknown model type: {model_str}, skipping dimension validation"
-            )
+            logger.debug(f"Unknown model type: {model_str}, skipping dimension validation")
             return
 
         if self.dimensions is None:
@@ -365,10 +343,7 @@ class ModelSettings(pydantic.BaseModel):
 
         max_dims = model_type.max_dimensions
         if max_dims and not (1 <= self.dimensions <= max_dims):
-            raise ValueError(
-                f"Dimensions must be between 1 and {max_dims} for {model_str}, "
-                f"got {self.dimensions}"
-            )
+            raise ValueError(f"Dimensions must be between 1 and {max_dims} for {model_str}, got {self.dimensions}")
 
 
 class Usage(pydantic.BaseModel):
@@ -390,7 +365,7 @@ class ModelResponse(pydantic.BaseModel):
     # returning vectors for text the response no longer holds.
     model_config = pydantic.ConfigDict(frozen=True)
 
-    output: list[typing.Text]
+    output: list[str]
     usage: Usage
 
     @functools.cached_property
@@ -435,9 +410,7 @@ class ModelResponse(pydantic.BaseModel):
 
         embeddings = normalize(self.to_numpy())
 
-        similarity_matrix = (
-            embeddings[0:1, :] @ embeddings[1:, :].T
-        )  # Shape: (1, length)
+        similarity_matrix = embeddings[0:1, :] @ embeddings[1:, :].T  # Shape: (1, length)
         # reshape rather than squeeze: a single document yields a (1, 1)
         # matrix, and squeeze() would collapse that to a non-iterable 0-d array
         relevance_scores = similarity_matrix.reshape(-1)  # Shape: (length, )
@@ -445,8 +418,7 @@ class ModelResponse(pydantic.BaseModel):
         similarity_response = SimilarityResponse.model_validate(
             {
                 "results": [
-                    SimilarityResult(index=i, relevance_score=score)
-                    for i, score in enumerate(relevance_scores)
+                    SimilarityResult(index=i, relevance_score=score) for i, score in enumerate(relevance_scores)
                 ],
                 "usage": Usage.model_validate_json(self.usage.model_dump_json()),
             }
@@ -454,9 +426,7 @@ class ModelResponse(pydantic.BaseModel):
         # NaN compares False against everything, so sorting on the raw score
         # can leave a NaN result sitting at the top as the "best" match.
         similarity_response.results.sort(
-            key=lambda x: (
-                -math.inf if math.isnan(x.relevance_score) else x.relevance_score
-            ),
+            key=lambda x: (-math.inf if math.isnan(x.relevance_score) else x.relevance_score),
             reverse=True,
         )
 
@@ -479,25 +449,16 @@ class _OpenAIEmbeddingsModelBase:
     def __init__(
         self,
         model: str | EmbeddingModel,
-        openai_client: (
-            openai.OpenAI
-            | openai.AzureOpenAI
-            | openai.AsyncOpenAI
-            | openai.AsyncAzureOpenAI
-        ),
+        openai_client: openai.OpenAI | openai.AzureOpenAI | openai.AsyncOpenAI | openai.AsyncAzureOpenAI,
         *args,
         cache: diskcache.Cache | None = None,
         encoding: tiktoken.Encoding | None = None,
         max_batch_size: int = MAX_BATCH_SIZE,
         max_input_tokens: int = MAX_INPUT_TOKENS,
         max_tokens_a_request: int = MAX_TOKENS_A_REQUEST,
-        token_limit_policy: typing.Literal[
-            "raise", "warn", "ignore", "truncate"
-        ] = "truncate",
+        token_limit_policy: typing.Literal["raise", "warn", "ignore", "truncate"] = "truncate",
         token_limit_usage_percent: typing.Annotated[float, "Range: 1 to 100"] = 85,
-        dimensions_parameter: (
-            typing.Literal["dimensions", "output_dimension"] | None
-        ) = None,
+        dimensions_parameter: typing.Literal["dimensions", "output_dimension"] | None = None,
         max_retries: int = 2,
         retry_base_delay: float = 1.0,
         **kwargs,
@@ -511,14 +472,9 @@ class _OpenAIEmbeddingsModelBase:
         if max_input_tokens < 1:
             raise ValueError(f"max_input_tokens must be >= 1, got {max_input_tokens}")
         if max_tokens_a_request < 1:
-            raise ValueError(
-                f"max_tokens_a_request must be >= 1, got {max_tokens_a_request}"
-            )
+            raise ValueError(f"max_tokens_a_request must be >= 1, got {max_tokens_a_request}")
         if not 0 < token_limit_usage_percent <= 100:
-            raise ValueError(
-                "token_limit_usage_percent must be in (0, 100], got "
-                f"{token_limit_usage_percent}"
-            )
+            raise ValueError(f"token_limit_usage_percent must be in (0, 100], got {token_limit_usage_percent}")
         if max_retries < 0:
             raise ValueError(f"max_retries must be >= 0, got {max_retries}")
 
@@ -549,9 +505,7 @@ class _OpenAIEmbeddingsModelBase:
         self._retry_base_delay = retry_base_delay
 
         # Calculate effective token limit
-        self._effective_token_limit = max(
-            1, int(self._max_input_tokens * self._token_limit_usage_percent / 100)
-        )
+        self._effective_token_limit = max(1, int(self._max_input_tokens * self._token_limit_usage_percent / 100))
 
         # Which request parameter carries custom dimensions. Voyage models take
         # `output_dimension` in extra_body; everything else takes `dimensions`.
@@ -559,9 +513,7 @@ class _OpenAIEmbeddingsModelBase:
         # containing the word is not misread; pass this explicitly for
         # deployment aliases that hide the underlying model.
         self._dimensions_parameter = dimensions_parameter or (
-            "output_dimension"
-            if self._model_str.lower().startswith("voyage")
-            else "dimensions"
+            "output_dimension" if self._model_str.lower().startswith("voyage") else "dimensions"
         )
 
         # Identifies the provider in cache keys: the same model name behind a
@@ -570,9 +522,7 @@ class _OpenAIEmbeddingsModelBase:
 
         _fork_sensitive_models.add(self)
 
-        logger.debug(
-            f"Initialized {self.__class__.__name__} with model: {self._model_str}"
-        )
+        logger.debug(f"Initialized {self.__class__.__name__} with model: {self._model_str}")
 
     def _reset_after_fork(self) -> None:
         """Drop resources a forked child inherited but cannot use.
@@ -583,9 +533,7 @@ class _OpenAIEmbeddingsModelBase:
         if self._cache is not None:
             self._cache.close()
 
-    def _handle_token_limits(
-        self, texts: typing.List[str], token_counts: typing.List[int]
-    ) -> typing.Tuple[typing.List[str], typing.List[int]]:
+    def _handle_token_limits(self, texts: list[str], token_counts: list[int]) -> tuple[list[str], list[int]]:
         """
         Apply token limit policy to process texts within limits.
         Handles truncation, warnings, or errors based on configured policy.
@@ -600,11 +548,7 @@ class _OpenAIEmbeddingsModelBase:
         Raises:
             ValueError: If policy is "raise" and token limit exceeded
         """
-        over_limit_indices = [
-            i
-            for i, count in enumerate(token_counts)
-            if count > self._effective_token_limit
-        ]
+        over_limit_indices = [i for i, count in enumerate(token_counts) if count > self._effective_token_limit]
 
         if not over_limit_indices:
             return texts, []
@@ -634,9 +578,7 @@ class _OpenAIEmbeddingsModelBase:
         elif self._token_limit_policy == "truncate":
             processed_texts = texts.copy()
             for i in over_limit_indices:
-                processed_texts[i] = truncate_text(
-                    texts[i], self._encoding, self._effective_token_limit
-                )
+                processed_texts[i] = truncate_text(texts[i], self._encoding, self._effective_token_limit)
 
             logger.warning(
                 f"Truncated {len(over_limit_indices)} of {len(texts)} texts to "
@@ -647,9 +589,7 @@ class _OpenAIEmbeddingsModelBase:
 
         return texts, []  # Fallback
 
-    def _prepare_batches(
-        self, texts: typing.List[str]
-    ) -> typing.Tuple[typing.List[str], typing.List[typing.List[int]], int]:
+    def _prepare_batches(self, texts: list[str]) -> tuple[list[str], list[list[int]], int]:
         """Apply the token limit policy, then group texts into requests.
 
         Batches respect both `max_batch_size` and `max_tokens_a_request`;
@@ -677,8 +617,8 @@ class _OpenAIEmbeddingsModelBase:
             for index in truncated_indices:
                 token_counts[index] = len(self._encoding.encode(safe_texts[index]))
 
-        batches: typing.List[typing.List[int]] = []
-        current: typing.List[int] = []
+        batches: list[list[int]] = []
+        current: list[int] = []
         current_tokens = 0
 
         for index, count in enumerate(token_counts):
@@ -705,9 +645,7 @@ class _OpenAIEmbeddingsModelBase:
             extra_body=model_settings.extra_body,
         )
 
-    def _resolve_usage(
-        self, response: typing.Any, safe_batch: typing.List[str]
-    ) -> Usage:
+    def _resolve_usage(self, response: typing.Any, safe_batch: list[str]) -> Usage:
         """Read token usage from a provider response.
 
         Not every OpenAI-compatible provider populates `usage`; when it is
@@ -724,17 +662,11 @@ class _OpenAIEmbeddingsModelBase:
             return Usage(input_tokens=batch_tokens, total_tokens=batch_tokens)
 
         return Usage(
-            input_tokens=(
-                usage.prompt_tokens
-                if usage.prompt_tokens is not None
-                else usage.total_tokens
-            ),
+            input_tokens=(usage.prompt_tokens if usage.prompt_tokens is not None else usage.total_tokens),
             total_tokens=usage.total_tokens,
         )
 
-    def _build_extra_kwargs(
-        self, model_settings: ModelSettings
-    ) -> dict[str, typing.Any]:
+    def _build_extra_kwargs(self, model_settings: ModelSettings) -> dict[str, typing.Any]:
         """Build the provider-specific request kwargs.
 
         Raises ValueError if `extra_body` cannot be serialised, rather than
@@ -750,15 +682,11 @@ class _OpenAIEmbeddingsModelBase:
                 # format does anyway: tuples become lists, keys become strings.
                 extra_body = json.loads(json.dumps(model_settings.extra_body))
             except (TypeError, ValueError) as e:
-                raise ValueError(
-                    f"model_settings.extra_body must be JSON-serialisable: {e}"
-                ) from e
+                raise ValueError(f"model_settings.extra_body must be JSON-serialisable: {e}") from e
 
         if self._dimensions_parameter == "dimensions":
             result["dimensions"] = (
-                model_settings.dimensions
-                if model_settings.dimensions is not None
-                else openai.NOT_GIVEN
+                model_settings.dimensions if model_settings.dimensions is not None else openai.NOT_GIVEN
             )
         elif model_settings.dimensions is not None:
             derived = model_settings.dimensions
@@ -784,9 +712,7 @@ class OpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
     # Cache I/O lives here rather than on the base class: these calls block,
     # and the async model must never reach them. It uses the batched
     # `_cache_get_many` / `_cache_set_many`, which go through its executor.
-    def _cache_get(
-        self, key: str, expected_dimensions: int | None = None
-    ) -> str | None:
+    def _cache_get(self, key: str, expected_dimensions: int | None = None) -> str | None:
         if self._cache is None:
             return None
         return validate_cached_embedding(key, self._cache.get(key), expected_dimensions)
@@ -798,14 +724,12 @@ class OpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
     @property
     def client(self) -> openai.OpenAI | openai.AzureOpenAI:
         if not isinstance(self._client, (openai.OpenAI, openai.AzureOpenAI)):
-            raise TypeError(
-                f"Expected a sync OpenAI client, got {type(self._client).__name__}"
-            )
+            raise TypeError(f"Expected a sync OpenAI client, got {type(self._client).__name__}")
         return self._client
 
     def _create_with_retry(
         self,
-        batch: typing.List[str],
+        batch: list[str],
         model_settings: ModelSettings,
         batch_no: int,
         total_batches: int,
@@ -825,31 +749,22 @@ class OpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
                 )
             except RETRYABLE_ERRORS as e:
                 if attempt >= self._max_retries:
-                    logger.error(
-                        f"Batch {batch_no}/{total_batches} failed after "
-                        f"{attempt + 1} attempt(s): {e}"
-                    )
+                    logger.error(f"Batch {batch_no}/{total_batches} failed after {attempt + 1} attempt(s): {e}")
                     raise
                 delay = self._retry_base_delay * (2**attempt)
-                logger.warning(
-                    f"Batch {batch_no}/{total_batches} hit {type(e).__name__}, "
-                    f"retrying in {delay:.1f}s"
-                )
+                logger.warning(f"Batch {batch_no}/{total_batches} hit {type(e).__name__}, retrying in {delay:.1f}s")
                 time.sleep(delay)
                 attempt += 1
             except Exception as e:
-                logger.error(
-                    f"Batch {batch_no}/{total_batches} failed on "
-                    f"model {self.model}: {e}"
-                )
+                logger.error(f"Batch {batch_no}/{total_batches} failed on model {self.model}: {e}")
                 raise
 
     def _embed_missing(
         self,
-        texts: typing.List[str],
-        keys: typing.List[str],
+        texts: list[str],
+        keys: list[str],
         model_settings: ModelSettings,
-    ) -> typing.Tuple[typing.List[str], Usage]:
+    ) -> tuple[list[str], Usage]:
         """
         Embed texts that were not cached, in batches within provider limits.
 
@@ -865,19 +780,15 @@ class OpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
             Tuple of (List of base64-encoded embeddings, Usage statistics)
         """
         safe_texts, batches, truncated = self._prepare_batches(texts)
-        results: typing.List[str | None] = [None] * len(texts)
+        results: list[str | None] = [None] * len(texts)
         total_input_tokens = 0
         total_tokens = 0
 
         for batch_no, group in enumerate(batches, start=1):
             batch = [safe_texts[i] for i in group]
-            logger.debug(
-                f"Processing batch {batch_no}/{len(batches)} ({len(batch)} texts)"
-            )
+            logger.debug(f"Processing batch {batch_no}/{len(batches)} ({len(batch)} texts)")
 
-            response = self._create_with_retry(
-                batch, model_settings, batch_no, len(batches)
-            )
+            response = self._create_with_retry(batch, model_settings, batch_no, len(batches))
             batch_embeddings = extract_ordered_embeddings(response.data)
 
             if len(batch_embeddings) != len(batch):
@@ -886,7 +797,7 @@ class OpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
                     f"{len(batch)} inputs in batch {batch_no}/{len(batches)}"
                 )
 
-            for index, embedding in zip(group, batch_embeddings):
+            for index, embedding in zip(group, batch_embeddings, strict=True):
                 results[index] = embedding
                 self._cache_set(keys[index], embedding)
 
@@ -894,7 +805,7 @@ class OpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
             total_input_tokens += batch_usage.input_tokens
             total_tokens += batch_usage.total_tokens
 
-        return typing.cast(typing.List[str], results), Usage(
+        return typing.cast(list[str], results), Usage(
             input_tokens=total_input_tokens,
             total_tokens=total_tokens,
             truncated_texts=truncated,
@@ -902,7 +813,7 @@ class OpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
 
     def get_embeddings(
         self,
-        input: str | typing.List[str],
+        input: str | list[str],
         model_settings: ModelSettings,
     ) -> ModelResponse:
         """
@@ -933,9 +844,7 @@ class OpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
 
         unique_texts, slots = deduplicate_texts(_input)
         keys = [self._cache_key_for(text, model_settings) for text in unique_texts]
-        resolved: typing.List[str | None] = [
-            self._cache_get(key, model_settings.dimensions) for key in keys
-        ]
+        resolved: list[str | None] = [self._cache_get(key, model_settings.dimensions) for key in keys]
 
         missing = [slot for slot, value in enumerate(resolved) if value is None]
         # Counted per input item, so a text repeated twice and served from
@@ -943,10 +852,7 @@ class OpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
         cache_hits = sum(1 for slot in slots if resolved[slot] is not None)
 
         if self._cache is not None and _input:
-            logger.debug(
-                f"Cache hit rate: {cache_hits / len(_input):.2%}, "
-                f"Processing {len(missing)} new embeddings"
-            )
+            logger.debug(f"Cache hit rate: {cache_hits / len(_input):.2%}, Processing {len(missing)} new embeddings")
 
         usage = Usage()
         if missing:
@@ -957,10 +863,10 @@ class OpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
                     model_settings,
                 )
             except Exception as e:
-                logger.error(f"Failed to process embeddings: {str(e)}")
+                logger.error(f"Failed to process embeddings: {e!s}")
                 raise
 
-            for slot, embedding in zip(missing, embeddings):
+            for slot, embedding in zip(missing, embeddings, strict=True):
                 resolved[slot] = embedding
 
         _output = [resolved[slot] for slot in slots]
@@ -968,10 +874,7 @@ class OpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
             raise RuntimeError("Failed to generate embeddings for some inputs")
 
         elapsed_time = time.time() - start_time
-        logger.debug(
-            f"Embeddings generated in {elapsed_time:.3f}s "
-            f"({len(_input)} texts, {len(missing)} embedded)"
-        )
+        logger.debug(f"Embeddings generated in {elapsed_time:.3f}s ({len(_input)} texts, {len(missing)} embedded)")
 
         return ModelResponse.model_validate(
             {
@@ -987,7 +890,7 @@ class OpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
 
     def get_embeddings_generator(
         self,
-        input: typing.List[str],
+        input: list[str],
         model_settings: ModelSettings,
         chunk_size: int = 100,
     ) -> typing.Generator[ModelResponse, None, None]:
@@ -1013,10 +916,7 @@ class OpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
         validated_input = validate_input(input)
 
         total_chunks = (len(validated_input) + chunk_size - 1) // chunk_size
-        logger.debug(
-            f"Processing {len(validated_input)} texts in {total_chunks} chunks "
-            f"of size {chunk_size}"
-        )
+        logger.debug(f"Processing {len(validated_input)} texts in {total_chunks} chunks of size {chunk_size}")
 
         for i in range(0, len(validated_input), chunk_size):
             chunk = validated_input[i : i + chunk_size]
@@ -1026,7 +926,7 @@ class OpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
     def get_similarity(
         self,
         query: str,
-        documents: typing.List[str],
+        documents: list[str],
         *,
         model_settings: ModelSettings,
     ) -> SimilarityResponse:
@@ -1035,7 +935,10 @@ class OpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
         if not query:
             raise ValueError("query is required")
 
-        embeddings_res = self.get_embeddings([query] + documents, model_settings)
+        # `+` deliberately, not `[query, *documents]`: concatenation rejects a
+        # bare `str` for `documents`, where unpacking would silently spread it
+        # into single characters and rank letters.
+        embeddings_res = self.get_embeddings([query] + documents, model_settings)  # noqa: RUF005
 
         return embeddings_res.as_similarity_response()
 
@@ -1052,9 +955,7 @@ class AsyncOpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
     ) -> None:
         super().__init__(*args, **kwargs)
         if max_concurrent_batches < 1:
-            raise ValueError(
-                f"max_concurrent_batches must be >= 1, got {max_concurrent_batches}"
-            )
+            raise ValueError(f"max_concurrent_batches must be >= 1, got {max_concurrent_batches}")
         self._max_concurrent_batches = max_concurrent_batches
         self._executor_max_workers = executor_max_workers
         self._executor = self._new_executor()
@@ -1098,7 +999,10 @@ class AsyncOpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
         executor = getattr(self, "_executor", None)
         if executor is None:
             return
-        try:
+        # `contextlib.suppress` is a global lookup, and module globals are
+        # already being torn down by the time `__del__` runs at interpreter
+        # shutdown. A bare try/except needs nothing from outside.
+        try:  # noqa: SIM105
             executor.shutdown(wait=False, cancel_futures=True)
         except Exception:  # interpreter shutdown can make this unreliable
             pass
@@ -1106,14 +1010,10 @@ class AsyncOpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
     @property
     def client(self) -> openai.AsyncOpenAI | openai.AsyncAzureOpenAI:
         if not isinstance(self._client, (openai.AsyncOpenAI, openai.AsyncAzureOpenAI)):
-            raise TypeError(
-                f"Expected an async OpenAI client, got {type(self._client).__name__}"
-            )
+            raise TypeError(f"Expected an async OpenAI client, got {type(self._client).__name__}")
         return self._client
 
-    async def _cache_get_many(
-        self, keys: typing.List[str], expected_dimensions: int | None = None
-    ) -> typing.List[str | None]:
+    async def _cache_get_many(self, keys: list[str], expected_dimensions: int | None = None) -> list[str | None]:
         """Read many keys in one executor job.
 
         One `run_in_executor` per key costs a cross-thread round trip each
@@ -1124,42 +1024,31 @@ class AsyncOpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
 
         cache = self._cache
         loop = asyncio.get_running_loop()
-        raw = await loop.run_in_executor(
-            self._executor, lambda: [cache.get(key) for key in keys]
-        )
+        raw = await loop.run_in_executor(self._executor, lambda: [cache.get(key) for key in keys])
         return [
-            validate_cached_embedding(key, value, expected_dimensions)
-            for key, value in zip(keys, raw)
+            validate_cached_embedding(key, value, expected_dimensions) for key, value in zip(keys, raw, strict=True)
         ]
 
-    async def _cache_set_many(
-        self, items: typing.Sequence[typing.Tuple[str, str]]
-    ) -> None:
+    async def _cache_set_many(self, items: typing.Sequence[tuple[str, str]]) -> None:
         """Write many entries in one executor job."""
         if self._cache is None or not items:
             return
 
         cache = self._cache
         loop = asyncio.get_running_loop()
-        await loop.run_in_executor(
-            self._executor, lambda: [cache.set(key, value) for key, value in items]
-        )
+        await loop.run_in_executor(self._executor, lambda: [cache.set(key, value) for key, value in items])
 
-    async def _resolve_usage_async(
-        self, response: typing.Any, batch: typing.List[str]
-    ) -> Usage:
+    async def _resolve_usage_async(self, response: typing.Any, batch: list[str]) -> Usage:
         """Resolve usage, offloading the tiktoken fallback off the loop."""
         if response.usage is not None:
             return self._resolve_usage(response, batch)
 
         loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(
-            self._executor, self._resolve_usage, response, batch
-        )
+        return await loop.run_in_executor(self._executor, self._resolve_usage, response, batch)
 
     async def _create_with_retry(
         self,
-        batch: typing.List[str],
+        batch: list[str],
         model_settings: ModelSettings,
         batch_no: int,
         total_batches: int,
@@ -1179,31 +1068,22 @@ class AsyncOpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
                 )
             except RETRYABLE_ERRORS as e:
                 if attempt >= self._max_retries:
-                    logger.error(
-                        f"Batch {batch_no}/{total_batches} failed after "
-                        f"{attempt + 1} attempt(s): {e}"
-                    )
+                    logger.error(f"Batch {batch_no}/{total_batches} failed after {attempt + 1} attempt(s): {e}")
                     raise
                 delay = self._retry_base_delay * (2**attempt)
-                logger.warning(
-                    f"Batch {batch_no}/{total_batches} hit {type(e).__name__}, "
-                    f"retrying in {delay:.1f}s"
-                )
+                logger.warning(f"Batch {batch_no}/{total_batches} hit {type(e).__name__}, retrying in {delay:.1f}s")
                 await asyncio.sleep(delay)
                 attempt += 1
             except Exception as e:
-                logger.error(
-                    f"Batch {batch_no}/{total_batches} failed on "
-                    f"model {self.model}: {e}"
-                )
+                logger.error(f"Batch {batch_no}/{total_batches} failed on model {self.model}: {e}")
                 raise
 
     async def _embed_missing(
         self,
-        texts: typing.List[str],
-        keys: typing.List[str],
+        texts: list[str],
+        keys: list[str],
         model_settings: ModelSettings,
-    ) -> typing.Tuple[typing.List[str], Usage]:
+    ) -> tuple[list[str], Usage]:
         """
         Embed uncached texts with concurrent, size-limited batches.
 
@@ -1218,23 +1098,17 @@ class AsyncOpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
         loop = asyncio.get_running_loop()
         # Token counting is CPU-bound and would otherwise stall the loop for
         # the whole call on a large input.
-        safe_texts, batches, truncated = await loop.run_in_executor(
-            self._executor, self._prepare_batches, texts
-        )
+        safe_texts, batches, truncated = await loop.run_in_executor(self._executor, self._prepare_batches, texts)
 
-        results: typing.List[str | None] = [None] * len(texts)
+        results: list[str | None] = [None] * len(texts)
         semaphore = asyncio.Semaphore(self._max_concurrent_batches)
 
-        async def process_batch(batch_no: int, group: typing.List[int]) -> Usage:
+        async def process_batch(batch_no: int, group: list[int]) -> Usage:
             async with semaphore:
                 batch = [safe_texts[i] for i in group]
-                logger.debug(
-                    f"Processing batch {batch_no}/{len(batches)} ({len(batch)} texts)"
-                )
+                logger.debug(f"Processing batch {batch_no}/{len(batches)} ({len(batch)} texts)")
 
-                response = await self._create_with_retry(
-                    batch, model_settings, batch_no, len(batches)
-                )
+                response = await self._create_with_retry(batch, model_settings, batch_no, len(batches))
                 batch_embeddings = extract_ordered_embeddings(response.data)
 
                 if len(batch_embeddings) != len(batch):
@@ -1244,25 +1118,20 @@ class AsyncOpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
                         f"{batch_no}/{len(batches)}"
                     )
 
-                for index, embedding in zip(group, batch_embeddings):
+                for index, embedding in zip(group, batch_embeddings, strict=True):
                     results[index] = embedding
 
                 # Shielded: this batch has been billed. If a sibling fails
                 # while the write is still queued in the executor, cancelling
                 # the await would cancel the queued job too and lose work the
                 # caller already paid for.
-                await asyncio.shield(
-                    self._cache_set_many(
-                        [(keys[i], results[i]) for i in group]  # type: ignore[misc]
-                    )
-                )
+                await asyncio.shield(self._cache_set_many([(keys[i], results[i]) for i in group]))  # type: ignore[misc]
                 return await self._resolve_usage_async(response, batch)
 
         try:
             async with asyncio.TaskGroup() as tg:
                 tasks = [
-                    tg.create_task(process_batch(batch_no, group))
-                    for batch_no, group in enumerate(batches, start=1)
+                    tg.create_task(process_batch(batch_no, group)) for batch_no, group in enumerate(batches, start=1)
                 ]
         except BaseExceptionGroup as eg:
             # TaskGroup wraps failures in a group; callers expect the original
@@ -1283,7 +1152,7 @@ class AsyncOpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
         total_input_tokens = sum(task.result().input_tokens for task in tasks)
         total_tokens = sum(task.result().total_tokens for task in tasks)
 
-        return typing.cast(typing.List[str], results), Usage(
+        return typing.cast(list[str], results), Usage(
             input_tokens=total_input_tokens,
             total_tokens=total_tokens,
             truncated_texts=truncated,
@@ -1291,7 +1160,7 @@ class AsyncOpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
 
     async def get_embeddings(
         self,
-        input: str | typing.List[str],
+        input: str | list[str],
         model_settings: ModelSettings,
     ) -> ModelResponse:
         """
@@ -1317,9 +1186,7 @@ class AsyncOpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
 
         unique_texts, slots = deduplicate_texts(_input)
         keys = [self._cache_key_for(text, model_settings) for text in unique_texts]
-        resolved: typing.List[str | None] = await self._cache_get_many(
-            keys, model_settings.dimensions
-        )
+        resolved: list[str | None] = await self._cache_get_many(keys, model_settings.dimensions)
 
         missing = [slot for slot, value in enumerate(resolved) if value is None]
         # Counted per input item, so a text repeated twice and served from
@@ -1327,10 +1194,7 @@ class AsyncOpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
         cache_hits = sum(1 for slot in slots if resolved[slot] is not None)
 
         if self._cache is not None and _input:
-            logger.debug(
-                f"Cache hit rate: {cache_hits / len(_input):.2%}, "
-                f"Processing {len(missing)} new embeddings"
-            )
+            logger.debug(f"Cache hit rate: {cache_hits / len(_input):.2%}, Processing {len(missing)} new embeddings")
 
         usage = Usage()
         if missing:
@@ -1341,10 +1205,10 @@ class AsyncOpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
                     model_settings,
                 )
             except Exception as e:
-                logger.error(f"Failed to process embeddings: {str(e)}")
+                logger.error(f"Failed to process embeddings: {e!s}")
                 raise
 
-            for slot, embedding in zip(missing, embeddings):
+            for slot, embedding in zip(missing, embeddings, strict=True):
                 resolved[slot] = embedding
 
         _output = [resolved[slot] for slot in slots]
@@ -1352,10 +1216,7 @@ class AsyncOpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
             raise RuntimeError("Failed to generate embeddings for some inputs")
 
         elapsed_time = time.time() - start_time
-        logger.debug(
-            f"Embeddings generated in {elapsed_time:.3f}s "
-            f"({len(_input)} texts, {len(missing)} embedded)"
-        )
+        logger.debug(f"Embeddings generated in {elapsed_time:.3f}s ({len(_input)} texts, {len(missing)} embedded)")
 
         return ModelResponse.model_validate(
             {
@@ -1371,7 +1232,7 @@ class AsyncOpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
 
     async def get_embeddings_generator(
         self,
-        input: typing.List[str],
+        input: list[str],
         model_settings: ModelSettings,
         chunk_size: int = 100,
     ) -> typing.AsyncGenerator[ModelResponse, None]:
@@ -1394,10 +1255,7 @@ class AsyncOpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
         validated_input = validate_input(input)
 
         total_chunks = (len(validated_input) + chunk_size - 1) // chunk_size
-        logger.debug(
-            f"Processing {len(validated_input)} texts in {total_chunks} chunks "
-            f"of size {chunk_size}"
-        )
+        logger.debug(f"Processing {len(validated_input)} texts in {total_chunks} chunks of size {chunk_size}")
 
         for i in range(0, len(validated_input), chunk_size):
             chunk = validated_input[i : i + chunk_size]
@@ -1407,7 +1265,7 @@ class AsyncOpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
     async def get_similarity(
         self,
         query: str,
-        documents: typing.List[str],
+        documents: list[str],
         *,
         model_settings: ModelSettings,
     ) -> SimilarityResponse:
@@ -1416,6 +1274,9 @@ class AsyncOpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
         if not query:
             raise ValueError("query is required")
 
-        embeddings_res = await self.get_embeddings([query] + documents, model_settings)
+        # `+` deliberately, not `[query, *documents]`: concatenation rejects a
+        # bare `str` for `documents`, where unpacking would silently spread it
+        # into single characters and rank letters.
+        embeddings_res = await self.get_embeddings([query] + documents, model_settings)  # noqa: RUF005
 
         return embeddings_res.as_similarity_response()
