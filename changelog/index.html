@@ -1,0 +1,1023 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="High-performance Python embeddings with caching, batch processing, and similarity search.">
+      
+      
+        <meta name="author" content="Allen Chou">
+      
+      
+        <link rel="canonical" href="https://allen2c.github.io/openai-embeddings-model/changelog/">
+      
+      
+        <link rel="prev" href="../benchmarks/">
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Changelog - OpenAI Embeddings Model</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#changelog" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="OpenAI Embeddings Model" class="md-header__button md-logo" aria-label="OpenAI Embeddings Model" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            OpenAI Embeddings Model
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Changelog
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/allen2c/openai-embeddings-model" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    allen2c/openai-embeddings-model
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="OpenAI Embeddings Model" class="md-nav__button md-logo" aria-label="OpenAI Embeddings Model" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    OpenAI Embeddings Model
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/allen2c/openai-embeddings-model" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    allen2c/openai-embeddings-model
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#060-2026-08-06" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.6.0] - 2026-08-06
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[0.6.0] - 2026-08-06">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#breaking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ⚠️ Breaking
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#internal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Internal
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#052-2026-08-06" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.5.2] - 2026-08-06
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[0.5.2] - 2026-08-06">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixed_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#051-2026-03-19" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.5.1] - 2026-03-19
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#050-2026-03-01" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.5.0] - 2026-03-01
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#060-2026-08-06" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.6.0] - 2026-08-06
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[0.6.0] - 2026-08-06">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#breaking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ⚠️ Breaking
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#internal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Internal
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#052-2026-08-06" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.5.2] - 2026-08-06
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="[0.5.2] - 2026-08-06">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fixed_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#051-2026-03-19" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.5.1] - 2026-03-19
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#050-2026-03-01" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [0.5.0] - 2026-03-01
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="changelog">Changelog<a class="headerlink" href="#changelog" title="Permanent link">&para;</a></h1>
+<p>All notable changes to this project are documented here.</p>
+<h2 id="060-2026-08-06">[0.6.0] - 2026-08-06<a class="headerlink" href="#060-2026-08-06" title="Permanent link">&para;</a></h2>
+<p>Behaviour release. These are the fixes deferred from 0.5.2 because each one
+changes what existing code does — silently accepted settings now raise, and
+the cache key layout changed.</p>
+<h3 id="breaking">⚠️ Breaking<a class="headerlink" href="#breaking" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Existing caches are invalidated.</strong> The cache key now includes a version
+  prefix, the client's <code>base_url</code>, and <code>extra_body</code>, so 0.5.x entries are
+  ignored rather than misread. <strong>The first run after upgrading re-embeds
+  everything, at full provider cost.</strong> Budget for it on large corpora. Old
+  entries are not deleted, so a rollback still finds its cache intact; clear
+  the directory yourself once you no longer need one.</li>
+</ul>
+<p>This closes a silent-corruption bug: two clients pointing at different
+  providers but sharing a cache directory and a model name returned each
+  other's vectors, and requests differing only in a provider parameter such as
+  Voyage's <code>output_dimension</code> collided. Neither was detectable from the
+  result.</p>
+<ul>
+<li>
+<p><strong><code>ModelSettings.validate_for_model</code> now rejects invalid dimensions.</strong> Its
+  <code>ValueError</code> raises previously sat inside its own <code>except ValueError</code>, so it
+  accepted anything for any model. Settings that used to pass silently and
+  fail later at the provider — <code>dimensions</code> above a model's maximum, or any
+  <code>dimensions</code> on <code>text-embedding-ada-002</code> — now raise before the request.
+  Unknown model names are still left alone.</p>
+</li>
+<li>
+<p><strong>Invalid constructor arguments now raise.</strong> <code>token_limit_usage_percent</code>
+  outside <code>(0, 100]</code>, and non-positive <code>max_batch_size</code>, <code>max_input_tokens</code>,
+  <code>max_tokens_a_request</code>, or negative <code>max_retries</code>, raise <code>ValueError</code>.
+  <code>token_limit_usage_percent=0</code> previously sent empty strings to the provider,
+  and a negative value hit Python's negative slicing and kept everything
+  <em>except</em> the last N tokens — the opposite of a cap.</p>
+</li>
+<li>
+<p><strong>A caller-supplied <code>encoding=</code> now takes precedence.</strong> It was previously
+  ignored whenever tiktoken recognised the model name, meaning it only applied
+  when you least needed it.</p>
+</li>
+<li>
+<p><strong><code>extra_body</code> that cannot be serialised raises <code>ValueError</code></strong> at the call
+  site instead of failing from inside the HTTP layer.</p>
+</li>
+<li>
+<p><strong><code>ModelResponse</code> is frozen.</strong> Its decoded array is cached on first access
+  and never invalidated, so reassigning <code>output</code> left <code>to_numpy()</code> returning
+  vectors for text the response no longer held. Code that assigns to
+  <code>response.output</code> or <code>response.usage</code> now raises <code>pydantic.ValidationError</code>.</p>
+</li>
+</ul>
+<h3 id="fixed">Fixed<a class="headerlink" href="#fixed" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Requests are no longer built past the provider's token limit.</strong>
+  <code>MAX_TOKENS_A_REQUEST</code> was declared but never used; batches split on item
+  count alone, so 2048 long texts produced a single multi-million-token
+  request that any provider rejects. Batches now respect a token budget as
+  well, configurable via <code>max_tokens_a_request</code>.</li>
+<li><strong>A failed batch no longer discards work already paid for.</strong> Caching was
+  deferred until every batch returned, so one failure at batch 5 of 10 threw
+  away four batches of billed embeddings. Each batch is now cached the moment
+  it succeeds.</li>
+<li><strong>Rate limits are retried.</strong> The code logged advice to add exponential
+  backoff without implementing it. Transient failures (rate limits, timeouts,
+  connection errors, 5xx) now retry with exponential backoff, controlled by
+  <code>max_retries</code> and <code>retry_base_delay</code>. Non-transient errors still fail
+  immediately.</li>
+<li><strong>A failing async batch now cancels its siblings.</strong> <code>asyncio.gather</code> left
+  them running, so a call that had already raised kept issuing requests the
+  caller would never see. Replaced with <code>asyncio.TaskGroup</code>; the original
+  provider exception is still what propagates.</li>
+<li><strong>Voyage detection no longer matches on substring.</strong> <code>my-voyage-clone</code> was
+  treated as a Voyage model and had its <code>dimensions</code> rerouted. Detection now
+  matches a <code>voyage</code> prefix, and <code>dimensions_parameter</code> sets it explicitly for
+  deployment aliases that hide the underlying model.</li>
+<li><strong><code>extra_body</code> overriding <code>dimensions</code> now warns</strong> instead of silently
+  producing vectors of a size the caller never asked for.</li>
+<li><strong>Text carrying lone surrogates no longer aborts the batch</strong> during cache
+  key generation.</li>
+<li><strong>Non-OpenAI models warn once</strong> that token counts, and therefore truncation
+  points, are approximate, rather than silently using gpt-4o's tokenizer.
+  A non-<code>str</code> model no longer raises an uncaught <code>AttributeError</code>.</li>
+<li><strong>Cache keys no longer collide on falsy values.</strong> <code>dimensions=0</code> shared a
+  key segment with <code>dimensions=None</code>, and <code>model=""</code> with the literal
+  <code>"unknown"</code>, so unrelated entries could be served for one another.</li>
+<li><strong><code>extra_body</code> with mixed key types no longer crashes the call.</strong> Building
+  the cache scope digest sorted the original key objects, so a dict mixing
+  <code>str</code> and <code>int</code> keys raised <code>TypeError</code> — even with caching disabled, since
+  the key is built before the request.</li>
+<li><strong>A second, differently-caused batch failure is no longer lost.</strong> Only one
+  exception can be raised, but the others are now logged; previously they
+  vanished from both the raised error and the traceback.</li>
+<li><strong>A nested <code>ExceptionGroup</code> from a batch is unwrapped to a concrete error</strong>,
+  so <code>except openai.RateLimitError</code> matches instead of silently missing.</li>
+<li><strong>Truncated texts are re-measured before batching.</strong> Cutting mid-codepoint
+  makes <code>decode()</code> insert U+FFFD, which re-encodes to an extra token;
+  assuming truncation landed exactly on the limit undercounted the request
+  and could overfill a batch past <code>max_tokens_a_request</code>.</li>
+<li><strong>The async cache write is shielded from sibling cancellation</strong>, so a batch
+  that was billed is persisted even if another batch fails while its write is
+  still queued.</li>
+<li><strong>Forked children rebuild what the fork invalidated.</strong> Models register an
+  <code>os.register_at_fork</code> hook that recreates the thread pool, whose workers do
+  not survive a fork, and drops the inherited sqlite connection. Constructing
+  a model before forking — the gunicorn <code>preload_app</code> shape — previously left
+  the child submitting work to a pool with no threads.</li>
+</ul>
+<h3 id="added">Added<a class="headerlink" href="#added" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>Usage.truncated_texts</code></strong> reports how many texts were shortened to fit the
+  token limit. The default <code>truncate</code> policy drops input with no signal in the
+  result; this makes the loss visible. Truncation also logs at warning level
+  rather than debug.</li>
+<li><strong>Repeated texts are embedded once.</strong> Duplicates within one call previously
+  each cost a provider slot.</li>
+<li><strong><code>max_concurrent_batches</code></strong> (async) exposes what was a hardcoded 5.</li>
+<li><code>get_default_cache</code>, <code>generate_cache_key</code>, and <code>CACHE_KEY_VERSION</code> are
+  exported for cache management.</li>
+</ul>
+<h3 id="performance">Performance<a class="headerlink" href="#performance" title="Permanent link">&para;</a></h3>
+<p>Measured, not guessed. The full write-up, method, and the experiments that
+rejected four other candidates are in <a href="../benchmarks/">Benchmarks</a>.</p>
+<ul>
+<li><strong><code>executor_max_workers</code> now defaults to <code>1</code></strong>, not <code>min(32, cpu_count + 4)</code>.
+  Everything the async model's pool runs is GIL-bound — sqlite through
+  diskcache, and tiktoken — so the extra workers were buying contention rather
+  than parallelism. Thirty-two concurrent all-hit calls finish <strong>4.3x faster</strong>
+  on one worker, and every larger value measured worse, on cache hits and
+  misses alike. <code>aiosqlite</code> reaches the same design from the same constraint.
+  The parameter stays, because one worker is right only for a <em>local</em> cache.
+  Against a cache that blocks on I/O — remote, or your own object over the
+  network — the answer inverts: at 0.5 ms per read, eight workers were 6.9x
+  faster than one; at 10 ms, fourteen were 8.0x faster. <strong>Raise it to roughly
+  your concurrency if your cache is remote.</strong> <code>None</code> restores the stdlib
+  default.</li>
+<li><strong>A batch's cache writes now share one sqlite transaction.</strong> Every <code>set()</code>
+  was its own <code>BEGIN</code>/<code>COMMIT</code> round trip. Batching them is <strong>1.6-2.4x</strong> faster
+  on the write path — steady from an empty cache to one holding 200,000
+  entries — and takes 1.4-1.6x off a full uncached call.</li>
+</ul>
+<p>The trade, in exchange: a write that fails partway through a batch now
+  discards that whole batch instead of leaving the earlier entries committed.
+  Those embeddings were already paid for, so a mid-batch disk failure costs
+  re-embedding the batch rather than just its tail. The caller still receives
+  every vector either way — only the cached copy is lost.
+- <strong>The cache key digests the request scope once per request</strong>, not once per
+  text. It is a <code>json.dumps</code> plus a sha256 over the provider and <code>extra_body</code>,
+  both fixed for the call, and it was two thirds of key generation — 3.3 ms
+  wasted on a 2048-text request. <strong>Keys are byte-identical</strong>; no cache is
+  invalidated by this.
+- <code>ModelResponse.to_python()</code> never cached its result despite the docstring
+  saying so. The docstring was wrong, not the code — caching it would hand
+  every caller the same mutable list, which is what <code>to_numpy()</code>'s copy exists
+  to prevent. Keep the result if you need it twice.</p>
+<h3 id="changed">Changed<a class="headerlink" href="#changed" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Async cache reads and writes are batched into one executor job each, instead
+  of one cross-thread round trip per key. The speedup scales with key count
+  and varies by machine; measurements on 2000 keys ranged from roughly 5x to
+  35x.</li>
+<li>Async token counting runs in the executor rather than on the event loop,
+  which it previously stalled for the duration of the call (~620ms for 2048
+  texts).</li>
+<li><code>generate_cache_key</code> no longer caches on the raw text, which had been
+  pinning up to 2048 full documents in memory for the life of the process.</li>
+<li><strong><code>str_or_none</code> is no longer a dependency.</strong> It was declared as a runtime
+  requirement but only ever used by the test suite, so installing this package
+  pulled it in for nothing. Nothing in the public API changes.</li>
+</ul>
+<h3 id="internal">Internal<a class="headerlink" href="#internal" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Line length is now 120. Formatting is black + isort, linting is ruff, and
+  every setting lives in <code>pyproject.toml</code>; the unused flake8 configuration is
+  gone. <code>make fmt</code> runs all of it plus a gitleaks scan, and <code>pyright</code> is clean.</li>
+</ul>
+<h2 id="052-2026-08-06">[0.5.2] - 2026-08-06<a class="headerlink" href="#052-2026-08-06" title="Permanent link">&para;</a></h2>
+<p>Correctness release. Every change here turns previously broken behaviour into
+correct behaviour — no API removals, no signature changes, and the cache key
+format is untouched, so existing caches stay valid.</p>
+<h3 id="fixed_1">Fixed<a class="headerlink" href="#fixed_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>get_similarity()</code> crashed with exactly one document.</strong> A single document
+  produced a <code>(1, 1)</code> similarity matrix, and <code>squeeze()</code> collapsed it to a
+  non-iterable 0-d array, raising <code>TypeError: iteration over a 0-d array</code>.
+  Both the sync and async paths were affected.</li>
+<li><strong>Provider responses were consumed in arrival order, ignoring <code>index</code>.</strong>
+  OpenAI documents that <code>data</code> comes back in request order, but proxies and
+  other OpenAI-compatible providers make no such promise. Results are now
+  ordered by the <code>index</code> each item reports, falling back to arrival order when
+  a provider omits it. A reordered response previously misaligned every
+  embedding with its text — silently, and the wrong vectors were written to
+  the cache.</li>
+<li><strong>The sync path crashed when a provider omitted <code>usage</code>.</strong> The async path
+  already fell back to a local tiktoken count; the sync path went straight to
+  <code>response.usage.prompt_tokens</code> and raised <code>AttributeError</code>. Both paths now
+  share one implementation, so they can no longer drift apart.</li>
+<li><strong><code>NaN</code> relevance scores could rank as the best match.</strong> <code>NaN</code> compares
+  <code>False</code> against everything, so sorting on the raw score could leave a <code>NaN</code>
+  result at position 0 ahead of a perfect <code>1.0</code> match. <code>NaN</code> now sorts last.</li>
+<li><strong><code>to_numpy()</code> handed out a read-only view of an internal buffer.</strong> Native
+  libraries that write through raw pointers (faiss, for example) ignore
+  numpy's read-only flag, so <code>faiss.normalize_L2(response.to_numpy())</code>
+  silently corrupted the decoded buffer and every later <code>to_numpy()</code> /
+  <code>to_python()</code> call on that response. <code>to_numpy()</code> now returns a writable
+  copy; the decode itself is still cached.</li>
+<li><strong>Unusable cache entries were coerced with <code>str()</code> and trusted.</strong> An entry
+  written by another tool or an older version could pass through as a
+  syntactically valid but meaningless vector — in the worst case decoding
+  cleanly into garbage floats with no error anywhere. Entries are now
+  validated (type, base64, buffer length, expected dimensionality, finiteness)
+  and treated as a cache miss when they fail.</li>
+</ul>
+<h3 id="added_1">Added<a class="headerlink" href="#added_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>AsyncOpenAIEmbeddingsModel.aclose()</code> and async context manager support.</strong>
+  Each instance owns a <code>ThreadPoolExecutor</code> and there was no way to release it
+  deterministically. <code>async with AsyncOpenAIEmbeddingsModel(...) as model:</code> and
+  <code>await model.aclose()</code> now shut the pool down; a <code>__del__</code> safety net covers
+  instances dropped without either. Note that CPython already reaps an
+  executor's workers once the executor itself becomes unreachable — the case
+  this fixes is a pool that outlives its model because something else still
+  references it.</li>
+<li><strong><code>tests/test_regressions.py</code></strong> — an offline regression suite covering every
+  fix above. It needs no API key and makes no network calls, so these paths
+  are verifiable in CI for the first time.</li>
+<li><code>[tool.pytest.ini_options]</code> in <code>pyproject.toml</code> pinning <code>asyncio_mode</code>.</li>
+</ul>
+<h2 id="051-2026-03-19">[0.5.1] - 2026-03-19<a class="headerlink" href="#051-2026-03-19" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Dependency updates.</li>
+</ul>
+<h2 id="050-2026-03-01">[0.5.0] - 2026-03-01<a class="headerlink" href="#050-2026-03-01" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Added <code>get_similarity(query, documents, model_settings)</code> returning a
+  <code>SimilarityResponse</code> sorted by relevance score.</li>
+<li>Added Voyage AI support via the <code>output_dimension</code> extra body parameter.</li>
+<li>Added <code>extra_body</code> to <code>ModelSettings</code>.</li>
+<li>Extracted <code>_OpenAIEmbeddingsModelBase</code> shared by the sync and async models.</li>
+<li>Async model gained a dedicated <code>ThreadPoolExecutor</code> for cache I/O.</li>
+<li>Added documentation site.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.top", "content.code.copy", "content.code.annotate"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

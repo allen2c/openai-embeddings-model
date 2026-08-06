@@ -1,0 +1,2496 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="High-performance Python embeddings with caching, batch processing, and similarity search.">
+      
+      
+        <meta name="author" content="Allen Chou">
+      
+      
+        <link rel="canonical" href="https://allen2c.github.io/openai-embeddings-model/benchmarks/">
+      
+      
+        <link rel="prev" href="..">
+      
+      
+        <link rel="next" href="../changelog/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Benchmarks - OpenAI Embeddings Model</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#benchmarks" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="OpenAI Embeddings Model" class="md-header__button md-logo" aria-label="OpenAI Embeddings Model" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            OpenAI Embeddings Model
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Benchmarks
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/allen2c/openai-embeddings-model" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    allen2c/openai-embeddings-model
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="OpenAI Embeddings Model" class="md-nav__button md-logo" aria-label="OpenAI Embeddings Model" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    OpenAI Embeddings Model
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/allen2c/openai-embeddings-model" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    allen2c/openai-embeddings-model
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-short-version" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The short version
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#method" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Method
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-the-sync-model-across-threads" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. The sync model across threads
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-where-an-all-hit-call-goes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Where an all-hit call goes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-the-async-model-and-the-event-loop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. The async model and the event loop
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. The async model and the event loop">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-long-the-loop-is-unavailable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How long the loop is unavailable
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#executor_max_workers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        executor_max_workers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#max_concurrent_batches" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        max_concurrent_batches
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#concurrency-and-what-saturates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concurrency, and what saturates
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-is-the-disk-cache-the-bottleneck" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Is the disk cache the bottleneck?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-a-partly-warm-cache" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. A partly-warm cache
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. A partly-warm cache">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#do-the-060-fixes-help-here" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Do the 0.6.0 fixes help here?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#loop-blocking-is-worst-at-the-extremes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Loop blocking is worst at the extremes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-what-was-worth-changing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. What was worth changing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. What was worth changing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#done-in-060" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Done in 0.6.0
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#not-worth-doing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Not worth doing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-the-three-together-are-worth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the three together are worth
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-new-executor-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The new executor default
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-were-these-the-right-fixes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Were these the right fixes?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-where-the-ceiling-is-and-what-is-left" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Where the ceiling is, and what is left
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Where the ceiling is, and what is left">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-that-50k-is-made-of" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What that 50k is made of
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-next-win-sized" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The next win, sized
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-will-not-work-already-measured-so-nobody-retries-it" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What will not work — already measured, so nobody retries it
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-structural-answer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The structural answer
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reproducing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reproducing
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-short-version" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The short version
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#method" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Method
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-the-sync-model-across-threads" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. The sync model across threads
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-where-an-all-hit-call-goes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Where an all-hit call goes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-the-async-model-and-the-event-loop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. The async model and the event loop
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. The async model and the event loop">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-long-the-loop-is-unavailable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How long the loop is unavailable
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#executor_max_workers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        executor_max_workers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#max_concurrent_batches" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        max_concurrent_batches
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#concurrency-and-what-saturates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concurrency, and what saturates
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-is-the-disk-cache-the-bottleneck" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Is the disk cache the bottleneck?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-a-partly-warm-cache" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. A partly-warm cache
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. A partly-warm cache">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#do-the-060-fixes-help-here" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Do the 0.6.0 fixes help here?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#loop-blocking-is-worst-at-the-extremes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Loop blocking is worst at the extremes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-what-was-worth-changing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. What was worth changing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. What was worth changing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#done-in-060" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Done in 0.6.0
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#not-worth-doing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Not worth doing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-the-three-together-are-worth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the three together are worth
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-new-executor-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The new executor default
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-were-these-the-right-fixes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Were these the right fixes?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-where-the-ceiling-is-and-what-is-left" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Where the ceiling is, and what is left
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Where the ceiling is, and what is left">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-that-50k-is-made-of" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What that 50k is made of
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-next-win-sized" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The next win, sized
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-will-not-work-already-measured-so-nobody-retries-it" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What will not work — already measured, so nobody retries it
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-structural-answer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The structural answer
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reproducing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reproducing
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="benchmarks">Benchmarks<a class="headerlink" href="#benchmarks" title="Permanent link">&para;</a></h1>
+<p>Where this library spends its time, how it behaves under concurrency, and
+which knobs actually move the numbers.</p>
+<p>Every measurement here replaces the provider with a local fake whose latency
+is a parameter. Nothing crosses the network, so nothing below is a claim about
+OpenAI — it is a claim about this code.</p>
+<div class="admonition info">
+<p class="admonition-title">Test bench</p>
+<p>Apple M4 Pro, 10 cores (4 performance + 6 efficiency), 32 GB,
+macOS (Darwin 25.6) · Python 3.12.13 ·
+diskcache 5.6.3 · numpy 2.4.6 · openai 2.53.0 · tiktoken 0.13.0 ·
+<code>text-embedding-3-small</code>, 1536 dimensions, ~185-token texts.</p>
+</div>
+<hr />
+<h2 id="the-short-version">The short version<a class="headerlink" href="#the-short-version" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Finding</th>
+<th>Number</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Threads help only when you are waiting on the provider</td>
+<td><strong>25.7×</strong> at 32 threads on cache misses; <strong>0.22×</strong> on cache hits</td>
+<td>Size your pool for provider latency, not for cores</td>
+</tr>
+<tr>
+<td>The async thread pool was oversized</td>
+<td>one worker finishes <strong>4.3× faster</strong> than the old <code>cpu_count + 4</code> default</td>
+<td><strong>Fixed in 0.6.0</strong> — <code>executor_max_workers</code> now defaults to 1</td>
+</tr>
+<tr>
+<td>The cache key digested the request scope once per text</td>
+<td><strong>3.28 ms</strong> wasted per 2048-text request</td>
+<td><strong>Fixed in 0.6.0</strong> — 2.9× on key generation, keys unchanged</td>
+</tr>
+<tr>
+<td>Cache writes were one sqlite transaction each</td>
+<td><strong>1.6–2.4×</strong> faster batched</td>
+<td><strong>Fixed in 0.6.0</strong> — one transaction per provider batch</td>
+</tr>
+<tr>
+<td>Cache hits cost more to validate than to read</td>
+<td><code>validate_cached_embedding</code> is <strong>54%</strong> of an all-hit call</td>
+<td>Kept — it is what makes a foreign cache entry safe</td>
+</tr>
+<tr>
+<td>A large call blocks the event loop</td>
+<td>up to <strong>69 ms</strong>; 40% of a 5 ms request cadence missed</td>
+<td>Chunk large inputs, or keep them off the request loop</td>
+</tr>
+<tr>
+<td><code>max_concurrent_batches=5</code> is the right default</td>
+<td>3.0× over serial; no gain past 5</td>
+<td>Left alone</td>
+</tr>
+<tr>
+<td>A partly-warm cache costs in proportion to its <strong>misses</strong>, over a floor set by the request size</td>
+<td>4096 texts cost 69 ms even at 100% hits</td>
+<td>Send only what you know is new, if you track that</td>
+</tr>
+<tr>
+<td>The throughput ceiling is one process serving <strong>50,571 cache hits/sec</strong>, and base64 decoding is 65% of it</td>
+<td>half that decoding is redundant — worth <strong>1.44×</strong></td>
+<td>Next release; see <a href="#8-where-the-ceiling-is-and-what-is-left">section 8</a></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="method">Method<a class="headerlink" href="#method" title="Permanent link">&para;</a></h2>
+<p>A real <code>openai</code> client is built against <code>base_url="http://localhost:1"</code> so the
+library's <code>isinstance</code> checks pass, then <code>embeddings.create</code> is replaced with a
+local function that returns base64 vectors after an optional <code>sleep</code>. Responses
+use <code>model_construct</code>, so the SDK's own parsing does not pollute the timings —
+which matches production, since the library always requests
+<code>encoding_format="base64"</code> and never pays to parse float arrays.</p>
+<p>Caches live in <code>tempfile</code> directories. Timings are medians over repeated trials
+with a warm-up, <code>time.perf_counter</code> throughout. Threads start on a
+<code>threading.Barrier</code> so the aggregate window is measured rather than the sum of
+per-thread times.</p>
+<hr />
+<h2 id="1-the-sync-model-across-threads">1. The sync model across threads<a class="headerlink" href="#1-the-sync-model-across-threads" title="Permanent link">&para;</a></h2>
+<p>One <code>OpenAIEmbeddingsModel</code> and one <code>diskcache.Cache</code> shared by every thread —
+the Flask/Django worker-thread shape.</p>
+<p><strong>Cache hits</strong> (16 texts per call, fully warm):</p>
+<table>
+<thead>
+<tr>
+<th>Threads</th>
+<th>texts/sec</th>
+<th>median call</th>
+<th>p95</th>
+<th>vs 1 thread</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>61,530</td>
+<td>0.26 ms</td>
+<td>0.27 ms</td>
+<td>1.00×</td>
+</tr>
+<tr>
+<td>2</td>
+<td>44,600</td>
+<td>0.70 ms</td>
+<td>1.03 ms</td>
+<td>0.72×</td>
+</tr>
+<tr>
+<td>4</td>
+<td>31,210</td>
+<td>1.99 ms</td>
+<td>2.80 ms</td>
+<td>0.51×</td>
+</tr>
+<tr>
+<td>8</td>
+<td>15,130</td>
+<td>8.51 ms</td>
+<td>10.8 ms</td>
+<td>0.25×</td>
+</tr>
+<tr>
+<td>16</td>
+<td>13,270</td>
+<td>19.2 ms</td>
+<td>23.8 ms</td>
+<td>0.22×</td>
+</tr>
+<tr>
+<td>32</td>
+<td>13,230</td>
+<td>38.4 ms</td>
+<td>47.7 ms</td>
+<td>0.22×</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Cache misses</strong>, 50 ms of fake provider latency per batch:</p>
+<table>
+<thead>
+<tr>
+<th>Threads</th>
+<th>texts/sec</th>
+<th>median call</th>
+<th>vs 1 thread</th>
+<th>without cache</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>137</td>
+<td>58.2 ms</td>
+<td>1.00×</td>
+<td>1.00×</td>
+</tr>
+<tr>
+<td>4</td>
+<td>554</td>
+<td>57.2 ms</td>
+<td>4.06×</td>
+<td>3.91×</td>
+</tr>
+<tr>
+<td>8</td>
+<td>1,115</td>
+<td>56.5 ms</td>
+<td>8.17×</td>
+<td>7.68×</td>
+</tr>
+<tr>
+<td>16</td>
+<td>2,195</td>
+<td>56.1 ms</td>
+<td>16.1×</td>
+<td>15.4×</td>
+</tr>
+<tr>
+<td>32</td>
+<td>3,514</td>
+<td>56.2 ms</td>
+<td>25.7×</td>
+<td>30.7×</td>
+</tr>
+</tbody>
+</table>
+<p>Two different worlds. On the miss path threads scale nearly linearly to 32,
+because every thread spends its life inside a socket read. On the hit path
+adding threads makes the work slower in absolute terms — one thread already
+does 61k texts/sec, and thirty-two do 13k.</p>
+<p>The gap between the cached and uncached miss columns at 32 threads (25.7× vs
+30.7×) is the cache reads and writes beginning to contend. It is real but
+second-order next to a 50 ms round trip.</p>
+<div class="admonition tip">
+<p class="admonition-title">Sizing the pool</p>
+<p>Threads buy you concurrency against the provider and nothing else. Pick the
+pool size from the provider's latency and rate limit. A thread pool sized
+to the core count is the wrong instinct here.</p>
+</div>
+<p><strong>Correctness held throughout</strong>: 16 threads × 150 calls, overlapping and
+distinct texts on a shared model and shared cache — 2,400 calls, 16,098 vectors
+verified against what was cached, zero mismatches, zero exceptions.</p>
+<hr />
+<h2 id="2-where-an-all-hit-call-goes">2. Where an all-hit call goes<a class="headerlink" href="#2-where-an-all-hit-call-goes" title="Permanent link">&para;</a></h2>
+<p>A single-threaded 512-text call that hits the cache for everything, broken into
+its parts (50 repeats):</p>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>µs</th>
+<th>%</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>validate_cached_embedding</code> × 512</td>
+<td>4,180</td>
+<td>53.6%</td>
+</tr>
+<tr>
+<td>raw <code>cache.get</code> × 512</td>
+<td>1,630</td>
+<td>20.9%</td>
+</tr>
+<tr>
+<td>key generation × 512</td>
+<td>1,273</td>
+<td>16.3%</td>
+</tr>
+<tr>
+<td>unaccounted</td>
+<td>668</td>
+<td>8.6%</td>
+</tr>
+<tr>
+<td><code>deduplicate_texts</code></td>
+<td>25</td>
+<td>0.3%</td>
+</tr>
+<tr>
+<td><code>validate_input</code></td>
+<td>19</td>
+<td>0.2%</td>
+</tr>
+<tr>
+<td><code>ModelResponse.model_validate</code></td>
+<td>4</td>
+<td>0.06%</td>
+</tr>
+<tr>
+<td><strong>measured call</strong></td>
+<td><strong>7,799</strong></td>
+<td><strong>100%</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Measured before the 0.6.0 fixes, so the key-generation row is the number that
+motivated hoisting the scope digest — it is about a third lower now.</p>
+<p>Validating a cached entry costs more than three times reading it: 7.97 µs
+against 2.69 µs. Inside that, 84% is <code>base64.b64decode</code>, 11% is
+<code>np.isfinite(...).all()</code>, 5% is the type and length checks. This is the price of
+the 0.6.0 guarantee that a foreign or corrupted cache entry is treated as a miss
+rather than silently decoded into a meaningless vector — worth knowing, and
+worth keeping.</p>
+<p>The unaccounted 8.6% is <code>validate_for_model</code>, the two list comprehensions that
+compute <code>missing</code> and <code>cache_hits</code>, <code>Usage</code> construction, and the <code>logger.debug</code>
+f-strings — which are formatted on every call even though the default log level
+throws the record away.</p>
+<p><strong>Tokenisation</strong> is the other CPU cost, and it only appears on the miss path.
+<code>_prepare_batches</code> runs tiktoken's <code>encode_batch</code> at <strong>24–28 µs per text</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Texts</th>
+<th><code>_prepare_batches</code></th>
+<th>µs/text</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>128</td>
+<td>3.1 ms</td>
+<td>24.0</td>
+</tr>
+<tr>
+<td>512</td>
+<td>12.4 ms</td>
+<td>24.3</td>
+</tr>
+<tr>
+<td>2048</td>
+<td>50.6 ms</td>
+<td>24.7</td>
+</tr>
+<tr>
+<td>4096</td>
+<td>115.1 ms</td>
+<td>28.1</td>
+</tr>
+</tbody>
+</table>
+<p>A 4096-text request spends 115 ms tokenising before it sends anything, and
+produces just 3 provider batches. It does not parallelise either — running
+<code>_prepare_batches</code> on 4 threads yields 0.80× the single-thread throughput, on 8
+threads 0.78×. The async model already moves this into its executor, which is
+the reason that decision exists.</p>
+<p><strong><code>get_embeddings_generator</code></strong> does not pay for itself on wall-clock: 4096
+texts took +38.6% longer in chunks of 256, for −0.9% peak RSS. Chunking splits
+one large provider request into many small ones. Reach for it when the caller
+genuinely cannot hold every response at once, not for speed.</p>
+<hr />
+<h2 id="3-the-async-model-and-the-event-loop">3. The async model and the event loop<a class="headerlink" href="#3-the-async-model-and-the-event-loop" title="Permanent link">&para;</a></h2>
+<h3 id="how-long-the-loop-is-unavailable">How long the loop is unavailable<a class="headerlink" href="#how-long-the-loop-is-unavailable" title="Permanent link">&para;</a></h3>
+<p>Maximum stall observed while one <code>get_embeddings</code> runs, measured by a task
+asking for a 5 ms sleep in a tight loop:</p>
+<table>
+<thead>
+<tr>
+<th>Texts</th>
+<th>all hits</th>
+<th>all misses</th>
+<th>no cache</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>64</td>
+<td>0.6 ms</td>
+<td>0.5 ms</td>
+<td>0.3 ms</td>
+</tr>
+<tr>
+<td>512</td>
+<td>3.0 ms</td>
+<td>3.5 ms</td>
+<td>14.9 ms</td>
+</tr>
+<tr>
+<td>2048</td>
+<td>16.1 ms</td>
+<td>14.1 ms</td>
+<td>37.0 ms</td>
+</tr>
+<tr>
+<td>4096</td>
+<td>31.5 ms</td>
+<td>69.3 ms</td>
+<td>27.3 ms</td>
+</tr>
+</tbody>
+</table>
+<p><code>_cache_get_many</code> and <code>_prepare_batches</code> do go through the executor, as
+designed. What stays on the loop is everything around them: <code>validate_input</code>,
+<code>deduplicate_texts</code>, key generation, the
+<code>validate_cached_embedding</code> comprehension inside <code>_cache_get_many</code> — which
+offloads only the raw <code>cache.get</code> calls, not the validation of their results —
+and the final <code>ModelResponse</code> build.</p>
+<p>Turned into something a service owner can act on: while a 4096-text all-hit
+call ran, a simulated 5 ms request cadence <strong>missed 40% of its ticks, the worst
+by 34.6 ms</strong>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Large calls are not free for your other traffic</p>
+<p>Anything past a few hundred texts will visibly delay concurrent requests on
+the same loop. Feed large corpora through <code>get_embeddings_generator</code>, or
+run them somewhere other than the loop serving user requests.</p>
+</div>
+<h3 id="executor_max_workers"><code>executor_max_workers</code><a class="headerlink" href="#executor_max_workers" title="Permanent link">&para;</a></h3>
+<p>32 concurrent 512-text all-hit calls on one shared model:</p>
+<table>
+<thead>
+<tr>
+<th>Workers</th>
+<th>wall</th>
+<th>p50</th>
+<th>p95</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1</strong></td>
+<td><strong>0.273 s</strong></td>
+<td>145 ms</td>
+<td>226 ms</td>
+</tr>
+<tr>
+<td>2</td>
+<td>0.346 s</td>
+<td>186 ms</td>
+<td>300 ms</td>
+</tr>
+<tr>
+<td>4</td>
+<td>0.489 s</td>
+<td>280 ms</td>
+<td>444 ms</td>
+</tr>
+<tr>
+<td>8</td>
+<td>1.116 s</td>
+<td>796 ms</td>
+<td>1072 ms</td>
+</tr>
+<tr>
+<td>14 <em>(default)</em></td>
+<td>1.175 s</td>
+<td>999 ms</td>
+<td>1125 ms</td>
+</tr>
+<tr>
+<td>32</td>
+<td>1.306 s</td>
+<td>1166 ms</td>
+<td>1284 ms</td>
+</tr>
+<tr>
+<td>64</td>
+<td>1.250 s</td>
+<td>1118 ms</td>
+<td>1227 ms</td>
+</tr>
+</tbody>
+</table>
+<p>One worker is <strong>4.3× faster than the default</strong> and monotonically better than
+every larger value. <code>ThreadPoolExecutor(max_workers=None)</code> resolves to
+<code>min(32, cpu_count + 4)</code> — 14 here — and every one of those threads past the
+first is pure contention.</p>
+<p>The obvious objection is that the executor also runs <code>_prepare_batches</code>, so a
+single worker should make concurrent callers queue behind each other's
+tokenisation. Measured across 16 concurrent 512-text calls, it does not:</p>
+<table>
+<thead>
+<tr>
+<th>Workers</th>
+<th>all hits</th>
+<th>misses, 0 ms provider</th>
+<th>misses, 20 ms provider</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1</strong></td>
+<td><strong>1.00×</strong></td>
+<td><strong>1.00×</strong></td>
+<td><strong>1.00×</strong></td>
+</tr>
+<tr>
+<td>4</td>
+<td>1.79×</td>
+<td>1.09×</td>
+<td>1.11×</td>
+</tr>
+<tr>
+<td>14</td>
+<td>3.77×</td>
+<td>1.27×</td>
+<td>1.23×</td>
+</tr>
+<tr>
+<td>32</td>
+<td>4.12×</td>
+<td>1.47×</td>
+<td>1.28×</td>
+</tr>
+</tbody>
+</table>
+<p>(Lower is better; 1.00× is the winner.) One worker wins every workload. Extra
+threads never add parallelism to GIL-bound work — see <a href="#4-is-the-disk-cache-the-bottleneck">section 4</a>.</p>
+<h3 id="max_concurrent_batches"><code>max_concurrent_batches</code><a class="headerlink" href="#max_concurrent_batches" title="Permanent link">&para;</a></h3>
+<p>8192 texts, 41 batches, 50 ms per batch:</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>wall</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>3.289 s</td>
+</tr>
+<tr>
+<td>2</td>
+<td>1.740 s</td>
+</tr>
+<tr>
+<td><strong>5</strong> <em>(default)</em></td>
+<td><strong>1.112 s</strong></td>
+</tr>
+<tr>
+<td>10</td>
+<td>1.111 s</td>
+</tr>
+<tr>
+<td>20</td>
+<td>1.132 s</td>
+</tr>
+<tr>
+<td>50</td>
+<td>1.201 s</td>
+</tr>
+</tbody>
+</table>
+<p>The default is the knee of the curve: 3.0× over serial, with nothing left on
+the table. Past 5 it flattens and then reverses — 41 simultaneous in-flight
+batches is more bookkeeping for no more throughput, and in production it is
+also the fastest way to a rate-limit storm.</p>
+<h3 id="concurrency-and-what-saturates">Concurrency, and what saturates<a class="headerlink" href="#concurrency-and-what-saturates" title="Permanent link">&para;</a></h3>
+<p>N concurrent 128-text all-hit calls on one shared model:</p>
+<table>
+<thead>
+<tr>
+<th>Concurrent calls</th>
+<th>texts/sec</th>
+<th>p50</th>
+<th>p95</th>
+<th>p99</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>58,520</td>
+<td>2.1 ms</td>
+<td>2.1 ms</td>
+<td>2.1 ms</td>
+</tr>
+<tr>
+<td>4</td>
+<td>29,750</td>
+<td>14.6 ms</td>
+<td>16.3 ms</td>
+<td>16.3 ms</td>
+</tr>
+<tr>
+<td>16</td>
+<td>14,070</td>
+<td>131 ms</td>
+<td>138 ms</td>
+<td>138 ms</td>
+</tr>
+<tr>
+<td>64</td>
+<td>13,010</td>
+<td>401 ms</td>
+<td>585 ms</td>
+<td>603 ms</td>
+</tr>
+<tr>
+<td>256</td>
+<td>14,160</td>
+<td>1,138 ms</td>
+<td>2,161 ms</td>
+<td>2,222 ms</td>
+</tr>
+</tbody>
+</table>
+<p>Throughput floors at ~13–14k texts/sec and stays there; latency grows linearly
+with the queue. The system has one lane, and past about 16 concurrent calls you
+are only lengthening it.</p>
+<p>Splitting the load over 4 model instances — 4 separate executors against one
+cache directory — made it worse, not better (1.257 s against 1.089 s), while
+costing four thread pools. Async narrowly beat an equivalent 32-thread sync
+pool in both regimes (1.170 s vs 1.218 s on hits, 1.990 s vs 2.246 s on misses
+with latency), so the choice between them is an architectural one, not a
+performance one.</p>
+<p><strong>Lifecycle</strong>: create + one call + <code>aclose()</code> costs 4.0 ms median. 200
+create-without-<code>aclose</code> cycles left the thread count flat at baseline with and
+without a forced <code>gc.collect()</code> — <code>__del__</code> reclaims the pool. <code>aclose()</code> is
+still the right call, because it releases the threads at a moment you choose.</p>
+<hr />
+<h2 id="4-is-the-disk-cache-the-bottleneck">4. Is the disk cache the bottleneck?<a class="headerlink" href="#4-is-the-disk-cache-the-bottleneck" title="Permanent link">&para;</a></h2>
+<p>Single-threaded, it is not:</p>
+<table>
+<thead>
+<tr>
+<th>Cache size</th>
+<th>hit</th>
+<th>miss</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1,000</td>
+<td>337k ops/s (2.96 µs)</td>
+<td>608k ops/s</td>
+</tr>
+<tr>
+<td>10,000</td>
+<td>277k ops/s (3.61 µs)</td>
+<td>577k ops/s</td>
+</tr>
+<tr>
+<td>100,000</td>
+<td>225k ops/s (4.45 µs)</td>
+<td>562k ops/s</td>
+</tr>
+</tbody>
+</table>
+<p>Writes run at 17.8k ops/s one at a time, 25.5k batched in a <code>transact()</code> block.
+Value size barely matters: at 256, 768, 1536 and 3072 dimensions the base64
+payload is 1.3–16 KB, all of it under diskcache's 32 KB <code>disk_min_file_size</code>, so
+every embedding this library produces is stored inline in sqlite and the
+file-spill path is never exercised. Reads range 362k → 254k ops/s across that
+span, writes 23.1k → 14.0k.</p>
+<p>Under threads it collapses:</p>
+<table>
+<thead>
+<tr>
+<th>Threads</th>
+<th>reads</th>
+<th>vs 1</th>
+<th>writes</th>
+<th>vs 1</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>244k ops/s</td>
+<td>1.00×</td>
+<td>16.9k ops/s</td>
+<td>1.00×</td>
+</tr>
+<tr>
+<td>2</td>
+<td>157k ops/s</td>
+<td>0.64×</td>
+<td>16.2k ops/s</td>
+<td>0.96×</td>
+</tr>
+<tr>
+<td>4</td>
+<td>61k ops/s</td>
+<td>0.25×</td>
+<td>15.1k ops/s</td>
+<td>0.90×</td>
+</tr>
+<tr>
+<td>8</td>
+<td>19k ops/s</td>
+<td>0.08×</td>
+<td>15.5k ops/s</td>
+<td>0.92×</td>
+</tr>
+<tr>
+<td>16</td>
+<td>17k ops/s</td>
+<td>0.07×</td>
+<td>12.1k ops/s</td>
+<td>0.72×</td>
+</tr>
+</tbody>
+</table>
+<p>Writes flattening is expected — sqlite has one write lock, and no
+<code>diskcache.Timeout</code> was raised anywhere in the run. Reads losing 93% of their
+throughput is not, so it was worth chasing down. Every sqlite-side explanation
+was tested and eliminated:</p>
+<table>
+<thead>
+<tr>
+<th>Hypothesis</th>
+<th>Test</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The shared <code>Cache</code> object serialises</td>
+<td>One <code>Cache</code> per thread, same directory</td>
+<td>Identical collapse</td>
+</tr>
+<tr>
+<td>diskcache overhead</td>
+<td>Raw <code>sqlite3</code>, connection per thread</td>
+<td>Identical collapse</td>
+</tr>
+<tr>
+<td>Working set exceeds the page cache</td>
+<td>0.1 MB db vs 40 MB db</td>
+<td>Identical collapse</td>
+</tr>
+<tr>
+<td>Page cache / mmap too small</td>
+<td>256 MB <code>cache_size</code>, 1 GB <code>mmap_size</code></td>
+<td>No change</td>
+</tr>
+<tr>
+<td>WAL index locking</td>
+<td><code>journal_mode=truncate</code></td>
+<td>Same collapse, and 39% slower on one thread</td>
+</tr>
+<tr>
+<td>One database file is the contention point</td>
+<td><code>FanoutCache(shards=4/8/16)</code></td>
+<td>Reads no better (writes 1.15–1.21× at 2–4 threads)</td>
+</tr>
+<tr>
+<td>Generic GIL preemption</td>
+<td>Plain <code>dict</code> lookups</td>
+<td>Flat to 16 threads (5.9M → 5.4M ops/s)</td>
+</tr>
+<tr>
+<td>GIL switch interval</td>
+<td>0.5 ms / 5 ms / 50 ms</td>
+<td>No change</td>
+</tr>
+<tr>
+<td>The GIL handoff itself</td>
+<td>Processes instead of threads</td>
+<td><strong>Processes scale; threads collapse</strong></td>
+</tr>
+</tbody>
+</table>
+<p>That last one is decisive. Identical reads, identical database, workers timing
+their own loops so interpreter startup is excluded:</p>
+<table>
+<thead>
+<tr>
+<th>Workers</th>
+<th>threads</th>
+<th>vs 1</th>
+<th>processes</th>
+<th>vs 1</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>224k ops/s</td>
+<td>1.00×</td>
+<td>245k ops/s</td>
+<td>1.00×</td>
+</tr>
+<tr>
+<td>2</td>
+<td>144k ops/s</td>
+<td>0.65×</td>
+<td>459k ops/s</td>
+<td>1.87×</td>
+</tr>
+<tr>
+<td>4</td>
+<td>59k ops/s</td>
+<td>0.27×</td>
+<td>791k ops/s</td>
+<td>3.23×</td>
+</tr>
+<tr>
+<td>8</td>
+<td>21k ops/s</td>
+<td>0.10×</td>
+<td>351k ops/s</td>
+<td>1.43×</td>
+</tr>
+</tbody>
+</table>
+<p>Processes scale to 3.2× on four workers — the machine's four performance cores
+— and fall back at eight as the work spills onto efficiency cores. Threads
+never scale at all. At eight workers, processes do <strong>16× the throughput of
+threads on the same query against the same file</strong>.</p>
+<p>What is left is the GIL release and reacquire that Python's <code>sqlite3</code> performs
+around every query. The calls are ~3 µs each; the handoff around them is not
+free, and with several threads doing nothing but short C calls the reacquisition
+cost swamps the work. A <code>dict</code> never releases the GIL and scales flat; processes
+have no shared GIL and scale properly; everything in between collapses.</p>
+<p>The practical reading: <strong>a shared disk cache is fast enough on one thread that
+parallelising reads across threads is counterproductive.</strong> 244k reads/sec is
+already far beyond what any embedding workload asks for. If you genuinely need
+more, the unit of scale is the process — a <code>gunicorn</code>/<code>uvicorn</code> worker per core,
+each with its own model — and the library is already built for it, since
+<code>_reset_after_fork</code> exists precisely to make a forked child's cache and
+executor usable again.</p>
+<div class="admonition danger">
+<p class="admonition-title">Do not reach for <code>FanoutCache</code></p>
+<p>It works end-to-end here, fork path included, and it buys nothing on reads.
+It also <strong>loses writes silently</strong>. <code>FanoutCache.set</code> swallows the timeout
+the sharded <code>Cache</code> raises under contention and returns <code>False</code> instead:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="k">return</span> <span class="n">shard</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">expire</span><span class="p">,</span> <span class="n">read</span><span class="p">,</span> <span class="n">tag</span><span class="p">,</span> <span class="n">retry</span><span class="p">)</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="k">except</span> <span class="n">Timeout</span><span class="p">:</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="k">return</span> <span class="kc">False</span>
+</code></pre></div>
+<p>This library, like most callers, does not inspect that return value — so a
+dropped write is invisible, and the next request silently re-embeds and
+re-pays for a vector you already bought. A plain <code>diskcache.Cache</code> raises
+instead.</p>
+</div>
+<hr />
+<h2 id="5-a-partly-warm-cache">5. A partly-warm cache<a class="headerlink" href="#5-a-partly-warm-cache" title="Permanent link">&para;</a></h2>
+<p>Sections 1 to 4 measure 0% and 100% hit rates. Production lives between them:
+a corpus grows by a few documents, a query overlaps yesterday's, a re-index
+touches a subset.</p>
+<p>The per-item work splits in two. Key generation, <code>cache.get</code> and
+<code>validate_cached_embedding</code> run over <strong>every</strong> text. tiktoken, the provider
+call and the cache write run over <strong>only the misses</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Runs over</th>
+<th>Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>key generation + cache read + validate</td>
+<td>every text</td>
+<td>15.2 µs/text</td>
+</tr>
+<tr>
+<td>tiktoken (<code>_prepare_batches</code>)</td>
+<td>misses only</td>
+<td>31.3 µs/text</td>
+</tr>
+</tbody>
+</table>
+<p>So the floor is set by how much you ask for and the slope by how much is
+missing. 4096 texts, 20 ms per provider batch:</p>
+<table>
+<thead>
+<tr>
+<th>Hit rate</th>
+<th>Misses</th>
+<th>sync</th>
+<th>async</th>
+<th>µs per text</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0%</td>
+<td>4096</td>
+<td>410.8 ms</td>
+<td>365.3 ms</td>
+<td>100.3</td>
+</tr>
+<tr>
+<td>25%</td>
+<td>3072</td>
+<td>332.8 ms</td>
+<td>308.3 ms</td>
+<td>81.3</td>
+</tr>
+<tr>
+<td>50%</td>
+<td>2048</td>
+<td>272.1 ms</td>
+<td>224.7 ms</td>
+<td>66.4</td>
+</tr>
+<tr>
+<td>75%</td>
+<td>1024</td>
+<td>161.3 ms</td>
+<td>151.7 ms</td>
+<td>39.4</td>
+</tr>
+<tr>
+<td>90%</td>
+<td>410</td>
+<td>125.3 ms</td>
+<td>114.8 ms</td>
+<td>30.6</td>
+</tr>
+<tr>
+<td>99%</td>
+<td>41</td>
+<td>96.2 ms</td>
+<td>87.1 ms</td>
+<td>23.5</td>
+</tr>
+<tr>
+<td>100%</td>
+<td>0</td>
+<td>68.9 ms</td>
+<td>61.6 ms</td>
+<td>16.8</td>
+</tr>
+</tbody>
+</table>
+<p>Linear in the miss count, with no cliff at any batch boundary — scattered
+misses collapse into few provider batches, because <code>_prepare_batches</code> only
+ever sees the missing subset.</p>
+<p><strong>The floor is the thing to notice.</strong> At 100% hits, 4096 texts still cost
+69 ms. That is the price of <em>asking</em>, paid on every text whether or not it is
+cached, and it is why the biggest lever belongs to the caller rather than to
+this library: at a 99% hit rate, passing all 4096 texts costs 96 ms, where
+passing only the 41 you know are new would cost about 21 ms. If you already
+track which documents changed, send those.</p>
+<h3 id="do-the-060-fixes-help-here">Do the 0.6.0 fixes help here?<a class="headerlink" href="#do-the-060-fixes-help-here" title="Permanent link">&para;</a></h3>
+<p>Yes, and most where there is most to do — the write transaction scales with
+misses, so its contribution fades as the cache warms:</p>
+<table>
+<thead>
+<tr>
+<th>Hit rate</th>
+<th>sync 0.5.x → 0.6.0</th>
+<th>async 0.5.x → 0.6.0</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0%</td>
+<td>577.3 → 415.1 ms (<strong>1.39×</strong>)</td>
+<td>542.7 → 363.1 ms (<strong>1.49×</strong>)</td>
+</tr>
+<tr>
+<td>50%</td>
+<td>344.0 → 252.2 ms (1.36×)</td>
+<td>339.0 → 240.2 ms (1.41×)</td>
+</tr>
+<tr>
+<td>90%</td>
+<td>147.4 → 121.8 ms (1.21×)</td>
+<td>135.3 → 118.3 ms (1.14×)</td>
+</tr>
+<tr>
+<td>99%</td>
+<td>107.2 → 94.7 ms (1.13×)</td>
+<td>90.0 → 87.2 ms (1.03×)</td>
+</tr>
+<tr>
+<td>100%</td>
+<td>71.5 → 67.8 ms (1.05×)</td>
+<td>63.8 → 60.9 ms (1.05×)</td>
+</tr>
+</tbody>
+</table>
+<p>These are single calls, so <code>executor_max_workers</code> barely participates — its
+4.3× needs concurrency, which is why sync and async track each other here.</p>
+<h3 id="loop-blocking-is-worst-at-the-extremes">Loop blocking is worst at the extremes<a class="headerlink" href="#loop-blocking-is-worst-at-the-extremes" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Hit rate</th>
+<th>0%</th>
+<th>25%</th>
+<th>50%</th>
+<th>75%</th>
+<th>90%</th>
+<th>99%</th>
+<th>100%</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>max loop lag</td>
+<td>36.7 ms</td>
+<td>20.6 ms</td>
+<td>15.6 ms</td>
+<td>24.0 ms</td>
+<td>28.9 ms</td>
+<td>34.9 ms</td>
+<td>35.3 ms</td>
+</tr>
+</tbody>
+</table>
+<p>A warm cache does not make the async model gentler on the event loop — it
+makes it worse. Validation runs on the loop and only hits pay for it, so the
+fully-cached call is close to the most disruptive one. The mid-range is
+cheapest because neither the validation pass nor the response build dominates.</p>
+<hr />
+<h2 id="6-what-was-worth-changing">6. What was worth changing<a class="headerlink" href="#6-what-was-worth-changing" title="Permanent link">&para;</a></h2>
+<p>Seven candidates were prototyped by subclassing the model or copying the
+function under test — never by editing the library. Each was checked for
+functional equivalence before its timing was believed.</p>
+<h3 id="done-in-060">Done in 0.6.0<a class="headerlink" href="#done-in-060" title="Permanent link">&para;</a></h3>
+<p><strong>Hoist <code>cache_scope_digest</code> out of the per-text loop.</strong> Key generation used to
+call <code>generate_cache_key</code> once per text, and each call re-ran a <code>json.dumps</code> and
+a sha256 over a provider and <code>extra_body</code> that are constant for the whole
+request. <code>_cache_keys_for</code> now digests the scope once and reuses it.
+That digest is 67% of a <code>generate_cache_key</code> call. The <code>not provider and not
+extra_body</code> fast path never fires in practice — a real client always carries a
+<code>base_url</code>, verified for both the default and a custom one.</p>
+<table>
+<thead>
+<tr>
+<th>Texts</th>
+<th>baseline</th>
+<th>hoisted</th>
+<th>speedup</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2048, no <code>extra_body</code></td>
+<td>5.10 ms</td>
+<td>1.74 ms</td>
+<td>2.93×</td>
+</tr>
+<tr>
+<td>2048, with <code>extra_body</code></td>
+<td>7.40 ms</td>
+<td>1.77 ms</td>
+<td>4.19×</td>
+</tr>
+<tr>
+<td>4096, end-to-end all-hit call</td>
+<td>66.4 ms</td>
+<td>58.1 ms</td>
+<td>1.14×</td>
+</tr>
+</tbody>
+</table>
+<p>Keys verified byte-identical, so no cache is invalidated. <strong>Risk: none.</strong></p>
+<p><strong>Batch cache writes in a transaction.</strong> Both <code>_embed_missing</code> (sync) and
+<code>_cache_set_many</code> (async) wrote one entry per sqlite transaction. Now one
+transaction per provider batch:</p>
+<table>
+<thead>
+<tr>
+<th>Case</th>
+<th>baseline</th>
+<th><code>transact()</code></th>
+<th>speedup</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>512 writes</td>
+<td>30.5 ms</td>
+<td>16.2 ms</td>
+<td>1.89×</td>
+</tr>
+<tr>
+<td>4096 writes</td>
+<td>250 ms</td>
+<td>120 ms</td>
+<td>2.09×</td>
+</tr>
+<tr>
+<td>4096 writes into a 391 MB cache</td>
+<td>262 ms</td>
+<td>165 ms</td>
+<td>1.58×</td>
+</tr>
+<tr>
+<td>4096 writes into a 1.5 GB cache</td>
+<td>252 ms</td>
+<td>105 ms</td>
+<td>2.40×</td>
+</tr>
+<tr>
+<td>512-text all-miss call, sync</td>
+<td>54.8 ms</td>
+<td>38.5 ms</td>
+<td>1.42×</td>
+</tr>
+<tr>
+<td>4096-text all-miss call, async</td>
+<td>569 ms</td>
+<td>367 ms</td>
+<td>1.55×</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Correction</p>
+<p>An earlier run of this page reported the speedup decaying from 2.07× at
+512 writes to 1.23× at 4096, and offered sqlite's page-cache spilling as
+the explanation. Both were wrong. The decay was an artifact of that
+harness: it timed six repeats into a single cache directory, so the last
+repeat was writing into a database the first repeat had grown. Measured
+against a controlled cache the win is flat at <strong>1.6–2.4× from empty to
+200,000 existing entries</strong>, and varying sqlite's page cache from 4 MB to
+512 MB changes nothing on a fresh database.</p>
+</div>
+<p><strong>Risk: real, and now asserted in the test suite.</strong> A transaction holds the
+write lock for the whole batch instead of one entry at a time. WAL means it
+does not block readers, and 2048 entries commit in roughly 100 ms — three
+orders of magnitude inside diskcache's 60 s timeout — so concurrent writers
+are not meaningfully affected.</p>
+<p>What genuinely changes is failure granularity. Wrapped in <code>transact()</code>, a
+write that raises partway through discards the whole batch; unwrapped, the
+entries before the failure stayed committed. Verified rather than assumed —
+injecting a failure at entry 256 of 512 leaves <strong>256 entries committed
+unwrapped and 0 wrapped</strong>. Those embeddings were already paid for, so the cost
+of a mid-batch disk failure rises from re-embedding the tail to re-embedding
+the batch. It is accepted because cache writes fail only on a full or broken
+disk, and the caller receives every vector either way — only the cached copy
+is lost. <code>test_a_batch_of_cache_writes_is_one_transaction</code> pins this down so
+nobody has to rediscover it.</p>
+<h3 id="not-worth-doing">Not worth doing<a class="headerlink" href="#not-worth-doing" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Candidate</th>
+<th>Measured</th>
+<th>Verdict</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Move <code>validate_cached_embedding</code> into the executor</td>
+<td>wall-clock 1.00×; max loop lag got <strong>worse</strong> (4.0 → 8.2 ms at 512, 45.8 → 56.3 ms at 4096)</td>
+<td>Rejected by its own measurement. The work is GIL-bound wherever it runs, so the loop waits either way and pays a thread handoff on top.</td>
+</tr>
+<tr>
+<td>Streamline <code>validate_cached_embedding</code> internals</td>
+<td>0.99–1.02×</td>
+<td>There is no redundant decode to remove: <code>np.frombuffer</code> is 0.20 µs and zero-copy against <code>b64decode</code>'s 7 µs. The cost <em>is</em> the base64 decode.</td>
+</tr>
+<tr>
+<td><code>model_construct</code> instead of <code>model_validate</code> for <code>ModelResponse</code></td>
+<td>37× — on an operation costing 33 µs at 4096 texts</td>
+<td>Saves 32 µs on a 60 ms call. Not worth giving up validation for.</td>
+</tr>
+<tr>
+<td>Bulk read via raw sqlite</td>
+<td>1.6–2.3×</td>
+<td>Needs <code>Cache._sql</code>, bypassing <code>Disk.fetch</code>'s mode dispatch, the eviction touch, and the statistics counters — and silently turns any oversized entry into a permanent miss. diskcache 5.6.3 has no <code>get_many</code>; nothing in its public API beats a <code>get()</code> loop.</td>
+</tr>
+<tr>
+<td>Cache <code>to_python()</code></td>
+<td>43 ms → 0.0002 ms on repeat calls</td>
+<td>The gain is real, but caching hands every caller the same mutable list — precisely what <code>to_numpy()</code>'s <code>.copy()</code> exists to prevent. The docstring claimed a caching that was never implemented; <strong>the docstring was fixed, not the code.</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="what-the-three-together-are-worth">What the three together are worth<a class="headerlink" href="#what-the-three-together-are-worth" title="Permanent link">&para;</a></h3>
+<p>Not the prototypes — the shipped code, measured against the same tree with the
+library change stashed:</p>
+<table>
+<thead>
+<tr>
+<th>Call</th>
+<th>0.5.x behaviour</th>
+<th>0.6.0</th>
+<th>speedup</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>sync, 4096 texts, all hits</td>
+<td>72.3 ms</td>
+<td>64.2 ms</td>
+<td>1.13×</td>
+</tr>
+<tr>
+<td>sync, 4096 texts, all misses</td>
+<td>536.2 ms</td>
+<td>346.7 ms</td>
+<td>1.55×</td>
+</tr>
+<tr>
+<td>async, 32 concurrent × 512 texts, all hits</td>
+<td>938.1 ms</td>
+<td>313.7 ms</td>
+<td><strong>2.99×</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="the-new-executor-default">The new executor default<a class="headerlink" href="#the-new-executor-default" title="Permanent link">&para;</a></h3>
+<p><code>executor_max_workers</code> now defaults to <code>1</code> instead of <code>min(32, cpu_count + 4)</code>.
+Everything the pool runs against a local <code>diskcache</code> is GIL-bound — sqlite, and
+tiktoken — so extra workers were adding contention rather than parallelism.</p>
+<p><strong>The knob stays.</strong> One worker is right only because the cache is local and
+fast, and nothing stops a caller passing a cache backed by a network
+filesystem, Redis, or S3. Simulating exactly that — 16 concurrent 64-text
+all-hit calls against a cache whose reads block — the answer inverts, hard:</p>
+<table>
+<thead>
+<tr>
+<th>Cache read latency</th>
+<th>Best worker count</th>
+<th>vs one worker</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0 ms (local diskcache)</td>
+<td><strong>1</strong></td>
+<td>— (14 workers is 4.4× <em>slower</em>)</td>
+</tr>
+<tr>
+<td>0.5 ms</td>
+<td>8</td>
+<td><strong>6.9× faster</strong></td>
+</tr>
+<tr>
+<td>2 ms</td>
+<td>14</td>
+<td><strong>7.6× faster</strong></td>
+</tr>
+<tr>
+<td>10 ms</td>
+<td>14</td>
+<td><strong>8.0× faster</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Half a millisecond per read is enough to flip it, which is not an exotic
+threshold. Hardcoding one worker would hand anyone with a remote cache an 8×
+regression and no way out. So: default to 1, and <strong>raise it to roughly your
+concurrency if your cache blocks on I/O</strong>. <code>None</code> restores the stdlib default.</p>
+<hr />
+<h2 id="7-were-these-the-right-fixes">7. Were these the right fixes?<a class="headerlink" href="#7-were-these-the-right-fixes" title="Permanent link">&para;</a></h2>
+<p>Both fixes were found by measurement before they were understood, which is a
+good way to ship something that surprises you later. Research produced four
+explanations; each was turned into a prediction and tested. <strong>Three failed.</strong></p>
+<p><strong>"Offloading cache reads to a thread is pointless, since the work is GIL-bound
+either way."</strong> Half right, and the half that is wrong is the important one.
+Doing the reads inline on the loop is indeed no slower — 0.151 s against
+0.155 s for one executor worker, a wash. But it blocks the event loop <strong>7.7×
+longer</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Variant</th>
+<th>wall</th>
+<th>max loop lag</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>executor, 1 worker</td>
+<td>0.155 s</td>
+<td>19 ms</td>
+</tr>
+<tr>
+<td>executor, 14 workers</td>
+<td>0.550 s</td>
+<td>23 ms</td>
+</tr>
+<tr>
+<td>inline on the event loop</td>
+<td>0.151 s</td>
+<td><strong>147 ms</strong></td>
+</tr>
+</tbody>
+</table>
+<p>The executor is not buying throughput. It is buying the loop the chance to run
+somebody else's request while sqlite holds the GIL released. Keep it.</p>
+<p><strong>"One worker means tiktoken blocks cache reads behind it in the queue."</strong> Not
+reproduced. Adding a 4096-text uncached call into 16 concurrent hit-path
+callers moved the hit-path maximum from 46.4 ms to 47.7 ms — 1.03×. Splitting
+cache I/O and tokenisation across two dedicated executors, the recommended fix,
+recovered 1.4 ms of that. At realistic load the single worker's queue is
+already the dominant latency and one more job is lost in it. <strong>Rejected: not
+worth a second thread pool.</strong></p>
+<p><strong>"The transact() speedup decays at large batches because of sqlite page-cache
+spilling."</strong> Refuted twice over. Varying the page cache from 4 MB to 512 MB
+against a fresh database changed nothing, and the decay itself turned out to be
+a harness artifact — see the correction above.</p>
+<p><strong>"A transacted batch rolls back entirely if one write fails."</strong> Confirmed, and
+it is the one real cost of the change. Numbers in the section above.</p>
+<p>Two things from the research did survive, and both are worth knowing:
+<code>aiosqlite</code> gives each connection exactly one dedicated worker thread, and
+SQLAlchemy's async sqlite support inherits that — so a single worker is the
+settled answer to this problem elsewhere, not a local hack. And reading
+diskcache's source explains why <code>transact()</code> composes: <code>_transact</code> keys an open
+transaction to <code>threading.get_ident()</code>, so the nested <code>set()</code> calls inside the
+block detect the outer <code>BEGIN IMMEDIATE</code> and skip issuing their own.</p>
+<hr />
+<h2 id="8-where-the-ceiling-is-and-what-is-left">8. Where the ceiling is, and what is left<a class="headerlink" href="#8-where-the-ceiling-is-and-what-is-left" title="Permanent link">&para;</a></h2>
+<p>For planning the next release, the bottleneck depends on which regime you are
+in — and only one of the three has anything left in it.</p>
+<p><strong>Miss-dominated</strong> (cold start, corpus ingest): the provider is the bottleneck
+and the library gets out of the way. Threads scale 25.7× to 32, and the local
+cost — 31 µs/text of tiktoken — is around 1% of a real 200-500 ms round trip.
+Nothing here is worth optimising.</p>
+<p><strong>Async under concurrency</strong>: throughput floors at ~14k texts/sec however many
+callers you add, which is <em>lower</em> than one sync thread. Async buys you
+concurrency against the provider, not throughput. Do not reach for it to go
+faster on cache hits.</p>
+<p><strong>Hit-dominated</strong> (the steady state of any mature deployment): this is the real
+ceiling, and it is <strong>50,571 texts/sec per process</strong>, cache hit through to a
+usable numpy array. Threads make it worse; only processes scale it.</p>
+<h3 id="what-that-50k-is-made-of">What that 50k is made of<a class="headerlink" href="#what-that-50k-is-made-of" title="Permanent link">&para;</a></h3>
+<p>Per text, hit through <code>to_numpy()</code> — 19.8 µs total:</p>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>µs</th>
+<th>share</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>base64.b64decode</code> in <code>validate_cached_embedding</code></td>
+<td>6.7</td>
+<td>34%</td>
+</tr>
+<tr>
+<td><code>base64.b64decode</code> again in <code>ModelResponse._ndarray</code></td>
+<td>6.0</td>
+<td>30%</td>
+</tr>
+<tr>
+<td><code>cache.get</code></td>
+<td>3.7</td>
+<td>19%</td>
+</tr>
+<tr>
+<td>key generation</td>
+<td>1.6</td>
+<td>8%</td>
+</tr>
+<tr>
+<td><code>np.isfinite(...).all()</code></td>
+<td>0.9</td>
+<td>4%</td>
+</tr>
+<tr>
+<td>everything else</td>
+<td>~1.0</td>
+<td>5%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Base64 decoding is 65% of the cache-hit path, and half of it is redundant.</strong>
+The bytes are decoded once to validate the entry, thrown away, and decoded
+again to build the array.</p>
+<h3 id="the-next-win-sized">The next win, sized<a class="headerlink" href="#the-next-win-sized" title="Permanent link">&para;</a></h3>
+<p>Carrying the decoded buffer from validation through to <code>ModelResponse</code> instead
+of decoding twice:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>texts/sec</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>today</td>
+<td>50,571</td>
+</tr>
+<tr>
+<td>decoded once</td>
+<td>72,651</td>
+</tr>
+</tbody>
+</table>
+<p><strong>1.44×</strong>, and it is the largest single item left. It is not a free change:
+<code>ModelResponse.output</code> is a public, frozen <code>list[str]</code> of base64, so the buffer
+has to travel beside it rather than replace it. That shape makes it a 0.7.0
+change, not a patch.</p>
+<h3 id="what-will-not-work-already-measured-so-nobody-retries-it">What will not work — already measured, so nobody retries it<a class="headerlink" href="#what-will-not-work-already-measured-so-nobody-retries-it" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Idea</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Decode the whole batch in one <code>b64decode</code> instead of per entry</td>
+<td><strong>0.99×.</strong> The cost is proportional to bytes, not to call count, so there is no loop overhead to remove. Verified equivalent on all 18 rejection cases first, then found to be pointless.</td>
+</tr>
+<tr>
+<td>Streamline <code>validate_cached_embedding</code>'s internals</td>
+<td>0.99–1.02×</td>
+</tr>
+<tr>
+<td>More executor threads, or a second executor</td>
+<td>negative, and 1.03× respectively</td>
+</tr>
+<tr>
+<td><code>FanoutCache</code></td>
+<td>no read gain, and it drops writes silently</td>
+</tr>
+<tr>
+<td>Raw sqlite bulk reads</td>
+<td>1.6–2.3×, at the cost of private API and silent misses on oversized entries</td>
+</tr>
+</tbody>
+</table>
+<h3 id="the-structural-answer">The structural answer<a class="headerlink" href="#the-structural-answer" title="Permanent link">&para;</a></h3>
+<p>Even with the double decode gone, one process tops out near 73k texts/sec and
+no amount of threading moves it. <strong>The unit of scale is the process</strong> — a
+worker per performance core, each with its own model, which is measured at
+3.2× on four. <code>_reset_after_fork</code> already exists to make that safe. Anything
+past that is a question about how fast Python can move 6 KB of float32 per
+text, not a question about this library.</p>
+<hr />
+<h2 id="reproducing">Reproducing<a class="headerlink" href="#reproducing" title="Permanent link">&para;</a></h2>
+<p>The benchmark scripts live in <code>benchmarks/</code> in the repository. They are not
+shipped with the package and are not part of the test suite. From the repo
+root:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>python<span class="w"> </span>benchmarks/bench_cache.py<span class="w">   </span><span class="c1"># disk cache in isolation</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>python<span class="w"> </span>benchmarks/bench_sync.py<span class="w">    </span><span class="c1"># sync model across threads</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>python<span class="w"> </span>benchmarks/bench_async.py<span class="w">   </span><span class="c1"># event loop and thread pool</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>python<span class="w"> </span>benchmarks/bench_opts.py<span class="w">    </span><span class="c1"># optimisation candidates</span>
+</code></pre></div>
+<p>Each writes a self-describing JSON payload to <code>benchmarks/results/</code>, and each
+takes <code>--quick</code> for a fast smoke run. Alongside them, the <code>diag_*.py</code> scripts
+hold the follow-up experiments: the read-collapse elimination table in section
+4 (<code>diag_read_collapse.py</code>, <code>diag_read_collapse2.py</code>, <code>diag_fanout.py</code>,
+<code>diag_proc_vs_thread.py</code>), the executor trade-off sweep in section 3
+(<code>diag_executor_tradeoff.py</code>), the partly-warm sweep in section 5
+(<code>diag_partial_hit.py</code>), the mechanism checks in section 7
+(<code>diag_mechanisms.py</code>), and the ceiling analysis in section 8
+(<code>diag_validation_ceiling.py</code>).</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.top", "content.code.copy", "content.code.annotate"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
