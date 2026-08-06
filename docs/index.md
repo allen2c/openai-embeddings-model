@@ -190,6 +190,27 @@ so passing the same string many times costs one slot, not many.
 
 ---
 
+## Good to Know
+
+**Token counts for non-OpenAI models are approximate.** `tiktoken` has no
+encoding for Voyage, Gemini, or a local model, so the count falls back to
+gpt-4o's tokenizer and the library warns once. That makes truncation points
+approximate — pass `encoding=` to make them exact.
+
+**Truncation is silent by default.** `token_limit_policy` defaults to
+`"truncate"`, which drops input to fit the token limit. Check
+`usage.truncated_texts`, or set the policy to `"raise"`.
+
+**A `ModelResponse` cannot be pickled or deep-copied** once `to_numpy()`,
+`to_python()`, or `as_similarity_response()` has run — the cached decode is a
+`memoryview`. Send `to_python()` output across a process boundary instead.
+
+**Forking is handled.** A model built before `os.fork()` — the gunicorn
+`preload_app` shape — rebuilds its thread pool and cache connection in the
+child automatically.
+
+---
+
 ## API Reference
 
 ### Classes

@@ -43,23 +43,19 @@ make format-all                               # isort + black
 - Record user-visible changes in `CHANGELOG.md`. The docs site renders it
   directly, so there is nowhere else to put them.
 
-## Known constraints
+## Traps
 
-- The cache key covers model name, `dimensions`, text, `base_url`, and
-  `extra_body`, behind a `CACHE_KEY_VERSION` prefix. Changing its layout
-  invalidates every existing cache and makes users re-pay for embeddings, so
-  it needs a minor version bump and a prominent changelog note — never a patch
-  release.
-- Token counts for non-OpenAI models fall back to gpt-4o's tokenizer, so
-  truncation points are approximate unless the caller passes `encoding=`.
-- `validate_cached_embedding` can only check dimensionality when
-  `model_settings.dimensions` is set. Providers configured through
-  `extra_body` alone get weaker validation. Not fixable from here — nothing
-  in the request states the expected size.
-- Models register with `os.register_at_fork` so a forked child rebuilds its
-  thread pool and drops the inherited sqlite connection. Anything else added
-  to a model that does not survive a fork belongs in `_reset_after_fork`.
-- A `ModelResponse` cannot be deep-copied or pickled once `to_numpy()`,
-  `to_python()`, or `as_similarity_response()` has run — the cached
-  `_decoded_bytes` is a `memoryview`. Pass `to_python()` output across a
-  process boundary instead. Long-standing, not specific to any release.
+Behaviour users need is in the docs' *Good to Know*. These are the ones that
+bite while editing:
+
+- **Changing the cache key layout costs users money.** It invalidates every
+  entry and re-embeds their corpus. Bump `CACHE_KEY_VERSION`, take a minor
+  version, and say so loudly in the changelog — never in a patch.
+- **Blocking cache I/O lives on the sync class only.** The async model uses
+  `_cache_get_many` / `_cache_set_many` via its executor. Keep it that way;
+  anything CPU-bound or blocking added to the async path needs
+  `run_in_executor`.
+- **Anything that does not survive a fork** belongs in `_reset_after_fork`.
+- **`validate_cached_embedding` can only check dimensionality** when
+  `model_settings.dimensions` is set. Not fixable — nothing in an
+  `extra_body`-only request states the expected size.

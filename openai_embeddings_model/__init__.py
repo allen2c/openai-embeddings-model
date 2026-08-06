@@ -705,17 +705,6 @@ class _OpenAIEmbeddingsModelBase:
             extra_body=model_settings.extra_body,
         )
 
-    def _cache_get(
-        self, key: str, expected_dimensions: int | None = None
-    ) -> str | None:
-        if self._cache is None:
-            return None
-        return validate_cached_embedding(key, self._cache.get(key), expected_dimensions)
-
-    def _cache_set(self, key: str, value: str) -> None:
-        if self._cache is not None:
-            self._cache.set(key, value)
-
     def _resolve_usage(
         self, response: typing.Any, safe_batch: typing.List[str]
     ) -> Usage:
@@ -791,6 +780,20 @@ class _OpenAIEmbeddingsModelBase:
 
 class OpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
     """Thread-safe OpenAI embeddings model with caching and batch processing."""
+
+    # Cache I/O lives here rather than on the base class: these calls block,
+    # and the async model must never reach them. It uses the batched
+    # `_cache_get_many` / `_cache_set_many`, which go through its executor.
+    def _cache_get(
+        self, key: str, expected_dimensions: int | None = None
+    ) -> str | None:
+        if self._cache is None:
+            return None
+        return validate_cached_embedding(key, self._cache.get(key), expected_dimensions)
+
+    def _cache_set(self, key: str, value: str) -> None:
+        if self._cache is not None:
+            self._cache.set(key, value)
 
     @property
     def client(self) -> openai.OpenAI | openai.AzureOpenAI:
