@@ -172,15 +172,21 @@ Entries are validated on read. Anything that does not decode into an embedding
 of the expected shape is discarded and re-fetched, so a cache directory shared
 with another tool cannot feed you a malformed vector.
 
-!!! warning "One cache directory per provider"
+The cache key covers the model name, `dimensions`, the text, the client's
+`base_url`, and `extra_body`. Two clients pointing at different providers can
+therefore share one cache directory safely, and requests differing only in a
+provider parameter — Voyage's `output_dimension`, a task type — no longer
+collide.
 
-    The cache key is derived from the model name, `dimensions`, and the text —
-    **not** from the client's `base_url` or from `extra_body`. Two models that
-    share a cache directory and a model name will therefore share vectors even
-    if they point at different providers, and requests that differ only in
-    `extra_body` (such as Voyage's `output_dimension`) will collide.
+Repeated texts within a single call are embedded once and the vector shared,
+so passing the same string many times costs one slot, not many.
 
-    Give each provider its own cache directory.
+!!! warning "0.6.0 invalidates existing caches"
+
+    The key layout changed, so entries written by 0.5.x are ignored rather
+    than misread. The first run after upgrading re-embeds everything. Old
+    entries are not deleted — clear the directory yourself once you no longer
+    need to roll back.
 
 ---
 
@@ -195,14 +201,22 @@ with another tool cannot feed you a malformed vector.
 
 ### Constructor Parameters
 
-| Parameter              | Type                           | Default      | Description                                   |
-|------------------------|--------------------------------|--------------|-----------------------------------------------|
-| `model`                | `str \| EmbeddingModel`        | —            | Model name                                    |
-| `openai_client`        | `OpenAI \| AsyncOpenAI \| ...` | —            | OpenAI-compatible client                      |
-| `cache`                | `diskcache.Cache \| None`      | `None`       | Embedding cache                               |
-| `max_batch_size`       | `int`                          | `2048`       | Max texts per API call                        |
-| `token_limit_policy`   | `str`                          | `"truncate"` | `"raise"`, `"warn"`, `"ignore"`, `"truncate"` |
-| `executor_max_workers` | `int \| None`                  | `None`       | Async only — thread pool size                 |
+| Parameter                   | Type                           | Default      | Description                                        |
+|-----------------------------|--------------------------------|--------------|----------------------------------------------------|
+| `model`                     | `str \| EmbeddingModel`        | —            | Model name                                         |
+| `openai_client`             | `OpenAI \| AsyncOpenAI \| ...` | —            | OpenAI-compatible client                           |
+| `cache`                     | `diskcache.Cache \| None`      | `None`       | Embedding cache                                    |
+| `encoding`                  | `tiktoken.Encoding \| None`    | `None`       | Tokenizer override; wins over auto-detection       |
+| `max_batch_size`            | `int`                          | `2048`       | Max texts per API call                             |
+| `max_input_tokens`          | `int`                          | `8191`       | Max tokens per text                                |
+| `max_tokens_a_request`      | `int`                          | `300000`     | Max tokens per API call                            |
+| `token_limit_policy`        | `str`                          | `"truncate"` | `"raise"`, `"warn"`, `"ignore"`, `"truncate"`      |
+| `token_limit_usage_percent` | `float`                        | `85`         | Share of `max_input_tokens` to use; must be in (0, 100] |
+| `dimensions_parameter`      | `str \| None`                  | `None`       | `"dimensions"` or `"output_dimension"`; auto-detected |
+| `max_retries`               | `int`                          | `2`          | Retries for rate limits and transient failures     |
+| `retry_base_delay`          | `float`                        | `1.0`        | Seconds before the first retry, doubling each time |
+| `executor_max_workers`      | `int \| None`                  | `None`       | Async only — thread pool size                      |
+| `max_concurrent_batches`    | `int`                          | `5`          | Async only — batches in flight at once             |
 
 ### Methods
 
@@ -229,9 +243,10 @@ with another tool cannot feed you a malformed vector.
 |----------------------|--------------------------------------------------------------|
 | `to_numpy()`         | `NDArray[np.float32]` — shape `(n, dims)`, a writable copy    |
 | `to_python()`        | `List[List[float]]`                                          |
-| `usage.input_tokens` | Tokens from input texts                   |
-| `usage.total_tokens` | Total tokens billed                       |
-| `usage.cache_hits`   | Number of cache hits                      |
+| `usage.input_tokens` | Tokens from input texts                                      |
+| `usage.total_tokens` | Total tokens billed                                          |
+| `usage.cache_hits`   | Number of cache hits                                         |
+| `usage.truncated_texts` | Texts shortened to fit the token limit — non-zero means input was dropped |
 
 **`SimilarityResponse`**
 

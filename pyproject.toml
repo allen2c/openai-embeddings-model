@@ -6,7 +6,7 @@ license = { text = "MIT" }
 name = "openai-embeddings-model"
 readme = "README.md"
 requires-python = ">=3.11,<4"
-version = "0.5.2"
+version = "0.6.0"
 
 [tool.poetry.group.dev.dependencies]
 black = { extras = ["jupyter"], version = "*" }

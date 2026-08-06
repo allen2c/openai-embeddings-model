@@ -2,6 +2,102 @@
 
 All notable changes to this project are documented here.
 
+## [0.6.0] - 2026-08-06
+
+Behaviour release. These are the fixes deferred from 0.5.2 because each one
+changes what existing code does — silently accepted settings now raise, and
+the cache key layout changed.
+
+### ⚠️ Breaking
+
+- **Existing caches are invalidated.** The cache key now includes a version
+  prefix, the client's `base_url`, and `extra_body`, so 0.5.x entries are
+  ignored rather than misread. **The first run after upgrading re-embeds
+  everything, at full provider cost.** Budget for it on large corpora. Old
+  entries are not deleted, so a rollback still finds its cache intact; clear
+  the directory yourself once you no longer need one.
+
+  This closes a silent-corruption bug: two clients pointing at different
+  providers but sharing a cache directory and a model name returned each
+  other's vectors, and requests differing only in a provider parameter such as
+  Voyage's `output_dimension` collided. Neither was detectable from the
+  result.
+
+- **`ModelSettings.validate_for_model` now rejects invalid dimensions.** Its
+  `ValueError` raises previously sat inside its own `except ValueError`, so it
+  accepted anything for any model. Settings that used to pass silently and
+  fail later at the provider — `dimensions` above a model's maximum, or any
+  `dimensions` on `text-embedding-ada-002` — now raise before the request.
+  Unknown model names are still left alone.
+
+- **Invalid constructor arguments now raise.** `token_limit_usage_percent`
+  outside `(0, 100]`, and non-positive `max_batch_size`, `max_input_tokens`,
+  `max_tokens_a_request`, or negative `max_retries`, raise `ValueError`.
+  `token_limit_usage_percent=0` previously sent empty strings to the provider,
+  and a negative value hit Python's negative slicing and kept everything
+  *except* the last N tokens — the opposite of a cap.
+
+- **A caller-supplied `encoding=` now takes precedence.** It was previously
+  ignored whenever tiktoken recognised the model name, meaning it only applied
+  when you least needed it.
+
+- **`extra_body` that cannot be serialised raises `ValueError`** at the call
+  site instead of failing from inside the HTTP layer.
+
+### Fixed
+
+- **Requests are no longer built past the provider's token limit.**
+  `MAX_TOKENS_A_REQUEST` was declared but never used; batches split on item
+  count alone, so 2048 long texts produced a single multi-million-token
+  request that any provider rejects. Batches now respect a token budget as
+  well, configurable via `max_tokens_a_request`.
+- **A failed batch no longer discards work already paid for.** Caching was
+  deferred until every batch returned, so one failure at batch 5 of 10 threw
+  away four batches of billed embeddings. Each batch is now cached the moment
+  it succeeds.
+- **Rate limits are retried.** The code logged advice to add exponential
+  backoff without implementing it. Transient failures (rate limits, timeouts,
+  connection errors, 5xx) now retry with exponential backoff, controlled by
+  `max_retries` and `retry_base_delay`. Non-transient errors still fail
+  immediately.
+- **A failing async batch now cancels its siblings.** `asyncio.gather` left
+  them running, so a call that had already raised kept issuing requests the
+  caller would never see. Replaced with `asyncio.TaskGroup`; the original
+  provider exception is still what propagates.
+- **Voyage detection no longer matches on substring.** `my-voyage-clone` was
+  treated as a Voyage model and had its `dimensions` rerouted. Detection now
+  matches a `voyage` prefix, and `dimensions_parameter` sets it explicitly for
+  deployment aliases that hide the underlying model.
+- **`extra_body` overriding `dimensions` now warns** instead of silently
+  producing vectors of a size the caller never asked for.
+- **Text carrying lone surrogates no longer aborts the batch** during cache
+  key generation.
+- **Non-OpenAI models warn once** that token counts, and therefore truncation
+  points, are approximate, rather than silently using gpt-4o's tokenizer.
+  A non-`str` model no longer raises an uncaught `AttributeError`.
+
+### Added
+
+- **`Usage.truncated_texts`** reports how many texts were shortened to fit the
+  token limit. The default `truncate` policy drops input with no signal in the
+  result; this makes the loss visible. Truncation also logs at warning level
+  rather than debug.
+- **Repeated texts are embedded once.** Duplicates within one call previously
+  each cost a provider slot.
+- **`max_concurrent_batches`** (async) exposes what was a hardcoded 5.
+- `get_default_cache`, `generate_cache_key`, and `CACHE_KEY_VERSION` are
+  exported for cache management.
+
+### Changed
+
+- Async cache reads and writes are batched into one executor job each, instead
+  of one cross-thread round trip per key — measured ~35x faster on 2000 keys.
+- Async token counting runs in the executor rather than on the event loop,
+  which it previously stalled for the duration of the call (~620ms for 2048
+  texts).
+- `generate_cache_key` no longer caches on the raw text, which had been
+  pinning up to 2048 full documents in memory for the life of the process.
+
 ## [0.5.2] - 2026-08-06
 
 Correctness release. Every change here turns previously broken behaviour into
