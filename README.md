@@ -34,15 +34,21 @@ from openai_embeddings_model import AsyncOpenAIEmbeddingsModel, ModelSettings
 
 async def main():
     client = openai.AsyncOpenAI(api_key="your-api-key")
-    model = AsyncOpenAIEmbeddingsModel(model="text-embedding-3-small", openai_client=client)
-    response = await model.get_embeddings(
-        input=["Hello, world!"],
-        model_settings=ModelSettings(dimensions=512)
-    )
-    print(response.to_numpy().shape)
+    async with AsyncOpenAIEmbeddingsModel(
+        model="text-embedding-3-small", openai_client=client
+    ) as model:
+        response = await model.get_embeddings(
+            input=["Hello, world!"],
+            model_settings=ModelSettings(dimensions=512)
+        )
+        print(response.to_numpy().shape)
 
 asyncio.run(main())
 ```
+
+`AsyncOpenAIEmbeddingsModel` owns a `ThreadPoolExecutor` for cache I/O. Use it as
+an async context manager, or call `await model.aclose()`, so the worker threads
+are released deterministically instead of at garbage-collection time.
 
 ## Similarity Search
 
@@ -125,6 +131,7 @@ Cache hits are tracked in `response.usage.cache_hits` and never re-billed.
 | `get_embeddings(input, model_settings)`                           | `ModelResponse`            |
 | `get_embeddings_generator(input, model_settings, chunk_size=100)` | `Generator[ModelResponse]` |
 | `get_similarity(query, documents, model_settings)`                | `SimilarityResponse`       |
+| `aclose()` — async model only, releases the cache-I/O thread pool | `None`                     |
 
 ### ModelSettings
 

@@ -6,6 +6,7 @@ import functools
 import hashlib
 import json
 import logging
+import math
 import pathlib
 import time
 import typing
@@ -81,6 +82,76 @@ def py_float_list_to_b64_np32_array(float_list: typing.List[float]) -> str:
 def b64_np32_array_to_py_float_list(b64_np32_array: str) -> typing.List[float]:
     """Convert a base64-encoded numpy float32 array to a list of python floats."""
     return np.frombuffer(base64.b64decode(b64_np32_array), dtype=np.float32).tolist()
+
+
+def validate_cached_embedding(
+    key: str, cached: typing.Any, expected_dimensions: int | None = None
+) -> str | None:
+    """Validate a raw cache entry, returning None when it is unusable.
+
+    A cache directory can accumulate entries written by another tool or an
+    older version of this library. Passing those through `str()` silently
+    produces a syntactically valid but meaningless vector, so anything that
+    does not decode into a plausible float32 embedding is treated as a miss
+    and re-fetched from the provider instead.
+    """
+    if cached is None:
+        return None
+
+    if not isinstance(cached, str):
+        logger.warning(
+            f"Discarding cache entry {key}: expected str, got "
+            f"{type(cached).__name__}"
+        )
+        return None
+
+    try:
+        raw = base64.b64decode(cached, validate=True)
+    except Exception:
+        logger.warning(f"Discarding cache entry {key}: not valid base64")
+        return None
+
+    if not raw or len(raw) % 4 != 0:
+        logger.warning(
+            f"Discarding cache entry {key}: {len(raw)} bytes is not a "
+            "positive multiple of 4"
+        )
+        return None
+
+    if expected_dimensions is not None and len(raw) // 4 != expected_dimensions:
+        logger.warning(
+            f"Discarding cache entry {key}: decodes to {len(raw) // 4} "
+            f"dimensions, expected {expected_dimensions}"
+        )
+        return None
+
+    if not np.isfinite(np.frombuffer(raw, dtype=np.float32)).all():
+        logger.warning(f"Discarding cache entry {key}: contains NaN or inf")
+        return None
+
+    return cached
+
+
+def extract_ordered_embeddings(
+    data: typing.Sequence[typing.Any],
+) -> typing.List[str]:
+    """Extract base64 embeddings from response data, ordered by provider index.
+
+    OpenAI documents that `data` comes back in request order, but proxies and
+    other OpenAI-compatible providers make no such promise. `index` is the
+    authoritative position, so it is used whenever every item supplies one.
+    """
+    items = list(data)
+    if items and all(isinstance(getattr(d, "index", None), int) for d in items):
+        items.sort(key=lambda d: d.index)
+    return [
+        (
+            d.embedding
+            if isinstance(d.embedding, str)
+            else py_float_list_to_b64_np32_array(d.embedding)
+        )
+        for d in items
+    ]
 
 
 def count_tokens(text: str, encoding: tiktoken.Encoding) -> int:
@@ -195,8 +266,15 @@ class ModelResponse(pydantic.BaseModel):
         return arr.reshape(len(self.output), dim)
 
     def to_numpy(self) -> np.typing.NDArray[np.float32]:
-        """Return embeddings as an (n, d) float32 ndarray (cached)."""
-        return self._ndarray
+        """Return embeddings as a writable (n, d) float32 ndarray.
+
+        The decoded buffer is cached, but each call returns a fresh copy of
+        it. The cached array is a read-only view over that buffer, and native
+        libraries that write through raw pointers (faiss, for example) ignore
+        numpy's read-only flag — handing out the view directly would let them
+        corrupt every later `to_numpy()` / `to_python()` result.
+        """
+        return self._ndarray.copy()
 
     def to_python(self) -> list[list[float]]:
         """Return embeddings as ordinary Python lists (cached)."""
@@ -210,7 +288,9 @@ class ModelResponse(pydantic.BaseModel):
         similarity_matrix = (
             embeddings[0:1, :] @ embeddings[1:, :].T
         )  # Shape: (1, length)
-        relevance_scores = similarity_matrix.squeeze()  # Shape: (length, )
+        # reshape rather than squeeze: a single document yields a (1, 1)
+        # matrix, and squeeze() would collapse that to a non-iterable 0-d array
+        relevance_scores = similarity_matrix.reshape(-1)  # Shape: (length, )
 
         similarity_response = SimilarityResponse.model_validate(
             {
@@ -221,7 +301,14 @@ class ModelResponse(pydantic.BaseModel):
                 "usage": Usage.model_validate_json(self.usage.model_dump_json()),
             }
         )
-        similarity_response.results.sort(key=lambda x: x.relevance_score, reverse=True)
+        # NaN compares False against everything, so sorting on the raw score
+        # can leave a NaN result sitting at the top as the "best" match.
+        similarity_response.results.sort(
+            key=lambda x: (
+                -math.inf if math.isnan(x.relevance_score) else x.relevance_score
+            ),
+            reverse=True,
+        )
 
         return similarity_response
 
@@ -350,15 +437,43 @@ class _OpenAIEmbeddingsModelBase:
 
         return texts  # Fallback
 
-    def _cache_get(self, key: str) -> str | None:
+    def _cache_get(
+        self, key: str, expected_dimensions: int | None = None
+    ) -> str | None:
         if self._cache is None:
             return None
-        cached = self._cache.get(key)
-        return str(cached) if cached is not None else None
+        return validate_cached_embedding(key, self._cache.get(key), expected_dimensions)
 
     def _cache_set(self, key: str, value: str) -> None:
         if self._cache is not None:
             self._cache.set(key, value)
+
+    def _resolve_usage(
+        self, response: typing.Any, safe_batch: typing.List[str]
+    ) -> Usage:
+        """Read token usage from a provider response.
+
+        Not every OpenAI-compatible provider populates `usage`; when it is
+        missing the counts are recomputed locally with tiktoken so both the
+        sync and async paths return a usable `Usage` instead of failing.
+        """
+        usage = response.usage
+        if usage is None:
+            logger.debug(
+                f"Provider {self._client.base_url} does not support usage "
+                "information. Using self tiktoken calculation."
+            )
+            batch_tokens = sum(count_tokens_in_batch(safe_batch, self._encoding))
+            return Usage(input_tokens=batch_tokens, total_tokens=batch_tokens)
+
+        return Usage(
+            input_tokens=(
+                usage.prompt_tokens
+                if usage.prompt_tokens is not None
+                else usage.total_tokens
+            ),
+            total_tokens=usage.total_tokens,
+        )
 
     def _build_extra_kwargs(
         self, model_settings: ModelSettings
@@ -442,24 +557,12 @@ class OpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
                     timeout=model_settings.timeout,
                     **self._build_extra_kwargs(model_settings),
                 )
-                embeddings.extend(
-                    [
-                        (
-                            data.embedding
-                            if isinstance(data.embedding, str)
-                            else py_float_list_to_b64_np32_array(data.embedding)
-                        )
-                        for data in response.data
-                    ]
-                )
+                embeddings.extend(extract_ordered_embeddings(response.data))
 
                 # Accumulate actual token usage from API response
-                total_input_tokens += (
-                    response.usage.prompt_tokens
-                    if response.usage.prompt_tokens is not None
-                    else response.usage.total_tokens
-                )
-                total_tokens += response.usage.total_tokens
+                batch_usage = self._resolve_usage(response, safe_batch)
+                total_input_tokens += batch_usage.input_tokens
+                total_tokens += batch_usage.total_tokens
 
             except openai.RateLimitError as e:
                 logger.error(f"Rate limit hit on batch {current_batch}: {str(e)}")
@@ -544,7 +647,7 @@ class OpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
                 dimensions=model_settings.dimensions,
                 text=item,
             )
-            cached_item = self._cache_get(cache_key)
+            cached_item = self._cache_get(cache_key, model_settings.dimensions)
             if cached_item is None:
                 _missing_idx.append(i)
             else:
@@ -678,6 +781,35 @@ class AsyncOpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
             thread_name_prefix=f"openai-emb-async-{id(self)}",
         )
 
+    async def aclose(self) -> None:
+        """Shut down the dedicated cache-I/O thread pool.
+
+        Each instance owns a `ThreadPoolExecutor`. CPython reaps an executor's
+        workers once the executor itself becomes unreachable, so this is about
+        releasing them at a point you choose rather than whenever the garbage
+        collector gets there — and about the case where something outlives the
+        model still holding the pool. Safe to call repeatedly; the model should
+        not be used afterwards.
+        """
+        self._executor.shutdown(wait=False, cancel_futures=True)
+
+    async def __aenter__(self) -> "AsyncOpenAIEmbeddingsModel":
+        return self
+
+    async def __aexit__(self, *exc_info: typing.Any) -> None:
+        await self.aclose()
+
+    def __del__(self) -> None:
+        # Safety net for instances dropped without aclose(): ends the workers
+        # even when something else still references the pool.
+        executor = getattr(self, "_executor", None)
+        if executor is None:
+            return
+        try:
+            executor.shutdown(wait=False, cancel_futures=True)
+        except Exception:  # interpreter shutdown can make this unreliable
+            pass
+
     @property
     def client(self) -> openai.AsyncOpenAI | openai.AsyncAzureOpenAI:
         if not isinstance(self._client, (openai.AsyncOpenAI, openai.AsyncAzureOpenAI)):
@@ -686,12 +818,14 @@ class AsyncOpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
             )
         return self._client
 
-    async def _cache_get(self, key: str) -> str | None:  # type: ignore[override]
+    async def _cache_get(  # type: ignore[override]
+        self, key: str, expected_dimensions: int | None = None
+    ) -> str | None:
         if self._cache is None:
             return None
         loop = asyncio.get_running_loop()
         cached = await loop.run_in_executor(self._executor, self._cache.get, key)
-        return str(cached) if cached is not None else None
+        return validate_cached_embedding(key, cached, expected_dimensions)
 
     async def _cache_set(self, key: str, value: str) -> None:  # type: ignore[override]
         if self._cache is not None:
@@ -741,37 +875,8 @@ class AsyncOpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
                         timeout=model_settings.timeout,
                         **self._build_extra_kwargs(model_settings),
                     )
-                    batch_embeddings = [
-                        (
-                            data.embedding
-                            if isinstance(data.embedding, str)
-                            else py_float_list_to_b64_np32_array(data.embedding)
-                        )
-                        for data in response.data
-                    ]
-
-                    # Handle providers capabilities
-                    if response.usage is None:
-                        logger.debug(
-                            f"Provider {self.client.base_url} does not support "
-                            f"usage information. Using self tiktoken calculation."
-                        )
-                        _batch_tokens: int = sum(
-                            count_tokens_in_batch(safe_batch, self._encoding)
-                        )
-                        response.usage = openai.types.create_embedding_response.Usage(
-                            prompt_tokens=_batch_tokens,
-                            total_tokens=_batch_tokens,
-                        )
-
-                    batch_usage = Usage(
-                        input_tokens=(
-                            response.usage.prompt_tokens
-                            if response.usage.prompt_tokens is not None
-                            else response.usage.total_tokens
-                        ),
-                        total_tokens=response.usage.total_tokens,
-                    )
+                    batch_embeddings = extract_ordered_embeddings(response.data)
+                    batch_usage = self._resolve_usage(response, safe_batch)
                     return batch_embeddings, batch_usage
 
                 except openai.RateLimitError as e:
@@ -868,7 +973,7 @@ class AsyncOpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
                 dimensions=model_settings.dimensions,
                 text=item,
             )
-            cached_item = await self._cache_get(cache_key)
+            cached_item = await self._cache_get(cache_key, model_settings.dimensions)
             if cached_item is None:
                 _missing_idx.append(i)
             else:
