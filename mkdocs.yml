@@ -44,4 +44,5 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - Benchmarks: benchmarks.md
   - Changelog: changelog.md

@@ -1,7 +1,13 @@
+SOURCES := openai_embeddings_model tests
+
+.PHONY: fmt install update-all mkdocs pytest
+
 # Development
 fmt:
-	@isort openai_embeddings_model tests
-	@black openai_embeddings_model tests
+	@isort $(SOURCES)
+	@black $(SOURCES)
+	@ruff check --fix $(SOURCES)
+	@gitleaks dir --config .gitleaks.toml --no-banner --redact .
 
 install:
 	poetry install --all-extras --all-groups

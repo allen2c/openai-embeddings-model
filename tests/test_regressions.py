@@ -45,7 +45,7 @@ def build_response(
                 index=idx,
                 object="embedding",
             )
-            for vec, idx in zip(vectors, indices)
+            for vec, idx in zip(vectors, indices, strict=True)
         ],
         model=MODEL,
         object="list",
@@ -65,7 +65,7 @@ def async_model(create, **kwargs) -> AsyncOpenAIEmbeddingsModel:
     return AsyncOpenAIEmbeddingsModel(model=MODEL, openai_client=client, **kwargs)
 
 
-def unit_vectors(n: int) -> typing.List[typing.List[float]]:
+def unit_vectors(n: int) -> list[list[float]]:
     """n distinct 3-d vectors, each a clean unit vector."""
     basis = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
     return [basis[i % 3] for i in range(n)]
@@ -76,9 +76,7 @@ def unit_vectors(n: int) -> typing.List[typing.List[float]]:
 
 def test_get_similarity_with_single_document_sync():
     def create(input, **kwargs):
-        return build_response(
-            unit_vectors(len(input)), usage=OpenAIUsage(prompt_tokens=2, total_tokens=2)
-        )
+        return build_response(unit_vectors(len(input)), usage=OpenAIUsage(prompt_tokens=2, total_tokens=2))
 
     model = sync_model(create)
     res = model.get_similarity("q", ["only one doc"], model_settings=ModelSettings())
@@ -90,15 +88,11 @@ def test_get_similarity_with_single_document_sync():
 @pytest.mark.asyncio
 async def test_get_similarity_with_single_document_async():
     async def create(input, **kwargs):
-        return build_response(
-            unit_vectors(len(input)), usage=OpenAIUsage(prompt_tokens=2, total_tokens=2)
-        )
+        return build_response(unit_vectors(len(input)), usage=OpenAIUsage(prompt_tokens=2, total_tokens=2))
 
     model = async_model(create)
     try:
-        res = await model.get_similarity(
-            "q", ["only one doc"], model_settings=ModelSettings()
-        )
+        res = await model.get_similarity("q", ["only one doc"], model_settings=ModelSettings())
     finally:
         await model.aclose()
 
@@ -117,9 +111,7 @@ def test_get_similarity_result_count_matches_documents():
 
     model = sync_model(create)
     for n_docs in (1, 2, 3, 7):
-        res = model.get_similarity(
-            "q", [f"doc-{i}" for i in range(n_docs)], model_settings=ModelSettings()
-        )
+        res = model.get_similarity("q", [f"doc-{i}" for i in range(n_docs)], model_settings=ModelSettings())
         assert len(res.results) == n_docs
         assert sorted(r.index for r in res.results) == list(range(n_docs))
 
@@ -157,9 +149,7 @@ async def test_out_of_order_response_is_realigned_by_index_async():
 
     model = async_model(create)
     try:
-        res = await model.get_embeddings(
-            ["a", "b", "c"], model_settings=ModelSettings()
-        )
+        res = await model.get_embeddings(["a", "b", "c"], model_settings=ModelSettings())
     finally:
         await model.aclose()
 
@@ -171,9 +161,7 @@ def test_response_without_index_field_keeps_arrival_order():
     distinct = [[1.0, 0.0, 0.0], [2.0, 0.0, 0.0]]
 
     def create(input, **kwargs):
-        resp = build_response(
-            distinct, usage=OpenAIUsage(prompt_tokens=2, total_tokens=2)
-        )
+        resp = build_response(distinct, usage=OpenAIUsage(prompt_tokens=2, total_tokens=2))
         for datum in resp.data:
             del datum.index
         return resp
@@ -205,9 +193,7 @@ async def test_missing_usage_falls_back_to_tiktoken_async():
 
     model = async_model(create)
     try:
-        res = await model.get_embeddings(
-            ["hello world"], model_settings=ModelSettings()
-        )
+        res = await model.get_embeddings(["hello world"], model_settings=ModelSettings())
     finally:
         await model.aclose()
 
@@ -253,7 +239,7 @@ def test_nan_relevance_score_never_ranks_above_a_real_match():
         [float("nan"), 1.0, 0.0],  # index 2 -> NaN score
     ]
     resp = ModelResponse(
-        output=[py_float_list_to_b64_np32_array(v) for v in [query] + docs],
+        output=[py_float_list_to_b64_np32_array(v) for v in [query, *docs]],
         usage=Usage(),
     )
 
@@ -268,9 +254,7 @@ def test_nan_relevance_score_never_ranks_above_a_real_match():
 
 
 def test_to_numpy_returns_a_writable_array():
-    resp = ModelResponse(
-        output=[py_float_list_to_b64_np32_array([1.0, 2.0, 3.0])], usage=Usage()
-    )
+    resp = ModelResponse(output=[py_float_list_to_b64_np32_array([1.0, 2.0, 3.0])], usage=Usage())
 
     arr = resp.to_numpy()
 
@@ -280,9 +264,7 @@ def test_to_numpy_returns_a_writable_array():
 
 def test_mutating_to_numpy_result_does_not_corrupt_the_response():
     """A caller (or faiss, writing through a raw pointer) must not poison the cache."""
-    resp = ModelResponse(
-        output=[py_float_list_to_b64_np32_array([3.0, 4.0, 0.0])], usage=Usage()
-    )
+    resp = ModelResponse(output=[py_float_list_to_b64_np32_array([3.0, 4.0, 0.0])], usage=Usage())
 
     first = resp.to_numpy()
     first[:] = 0.0  # simulate an in-place normalisation by a native library
@@ -306,7 +288,7 @@ def test_mutating_to_numpy_result_does_not_corrupt_the_response():
 )
 def test_corrupt_cache_entry_is_treated_as_a_miss(tmp_path, bad_value, note):
     cache = diskcache.Cache(str(tmp_path / "cache"))
-    calls: typing.List[int] = []
+    calls: list[int] = []
 
     def create(input, **kwargs):
         calls.append(len(input))
@@ -345,7 +327,7 @@ def test_cache_entry_containing_nan_is_rejected():
 
 def test_valid_cache_entry_still_hits(tmp_path):
     cache = diskcache.Cache(str(tmp_path / "cache"))
-    calls: typing.List[int] = []
+    calls: list[int] = []
 
     def create(input, **kwargs):
         calls.append(len(input))

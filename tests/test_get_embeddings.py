@@ -63,9 +63,7 @@ def test_get_embeddings_in_batch(openai_client: openai.OpenAI, cache: diskcache.
 
 
 @pytest.mark.asyncio
-async def test_get_embeddings_async(
-    openai_client_async: openai.AsyncOpenAI, cache: diskcache.Cache
-):
+async def test_get_embeddings_async(openai_client_async: openai.AsyncOpenAI, cache: diskcache.Cache):
     dim = 512
     sentence = fake.sentence()
 
@@ -91,9 +89,7 @@ async def test_get_embeddings_async(
 
 
 @pytest.mark.asyncio
-async def test_get_embeddings_async_in_batch(
-    openai_client_async: openai.AsyncOpenAI, cache: diskcache.Cache
-):
+async def test_get_embeddings_async_in_batch(openai_client_async: openai.AsyncOpenAI, cache: diskcache.Cache):
     dim = 512
     sentences = [fake.sentence() for _ in range(5)]
 

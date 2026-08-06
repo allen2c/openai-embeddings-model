@@ -16,9 +16,7 @@ from openai_embeddings_model import (
 fake = Faker()
 
 
-def test_handle_over_limit(
-    openai_client: openai.OpenAI, cache: diskcache.Cache, monkeypatch
-):
+def test_handle_over_limit(openai_client: openai.OpenAI, cache: diskcache.Cache, monkeypatch):
     """Test token limit handling with raise and truncate policies."""
 
     # Monkey patch to avoid API calls
@@ -60,9 +58,7 @@ def test_handle_over_limit(
 
 
 @pytest.mark.asyncio
-async def test_handle_over_limit_async(
-    openai_client_async: openai.AsyncOpenAI, cache: diskcache.Cache, monkeypatch
-):
+async def test_handle_over_limit_async(openai_client_async: openai.AsyncOpenAI, cache: diskcache.Cache, monkeypatch):
     """Test async token limit handling with raise and truncate policies."""
 
     async def async_mock_embeddings_create(input, model, **kwargs):
@@ -70,9 +66,7 @@ async def test_handle_over_limit_async(
         return _mock_embeddings_create(input, model, **kwargs)
 
     # Monkey patch to avoid API calls
-    monkeypatch.setattr(
-        openai_client_async.embeddings, "create", async_mock_embeddings_create
-    )
+    monkeypatch.setattr(openai_client_async.embeddings, "create", async_mock_embeddings_create)
 
     # Generate text that exceeds token limits
     long_text = _create_long_text()
@@ -133,7 +127,7 @@ def _mock_embeddings_create(input, model, **kwargs):
 
     # Generate fake base64 embeddings for each input
     input_texts = input if isinstance(input, list) else [input]
-    for text in input_texts:
+    for _text in input_texts:
         mock_data = Mock()
         # Generate a fake embedding array with correct dimensions
         fake_embedding = np.random.random(dimensions).astype(np.float32)

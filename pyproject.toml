@@ -1,12 +1,12 @@
 [project]
 authors = [{ name = "Allen Chou", email = "f1470891079@gmail.com" }]
-dependencies = ["diskcache", "numpy", "openai", "str_or_none", "tiktoken"]
+dependencies = ["diskcache", "numpy", "openai", "tiktoken"]
 description = "OpenAIEmbeddingsModel"
 license = { text = "MIT" }
 name = "openai-embeddings-model"
 readme = "README.md"
 requires-python = ">=3.11,<4"
-version = "0.5.2"
+version = "0.6.0"
 
 [tool.poetry.group.dev.dependencies]
 black = { extras = ["jupyter"], version = "*" }
@@ -17,18 +17,47 @@ poetry-plugin-export = "*"
 pytest = "^8"
 pytest-asyncio = "*"
 pytest-env = "*"
+ruff = "*"
 setuptools = ">=69"
 
 [tool.pytest.ini_options]
-asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
+asyncio_mode = "strict"
+
+[tool.black]
+line-length = 120
+target-version = ["py311"]
 
 [tool.isort]
+line_length = 120
 profile = "black"
 
-[tool.flake8]
-ignore = ["E203", "E704", "W503"]
-max-line-length = 88
+[tool.ruff]
+extend-exclude = ["dist", "site", "tmp"]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+# E203 is whitespace before ':', which black deliberately emits in slices.
+ignore = ["E203"]
+# Import order is owned by isort, so `I` stays off here. ISC001 catches the
+# `f"a" f"b"` fragments the old 88-column wrapping left behind; split a literal
+# across lines if a merged one will not fit.
+select = ["B", "E", "F", "ISC001", "RUF", "SIM", "UP", "W"]
+
+[tool.ruff.lint.per-file-ignores]
+# B023 flags a closure that reads a loop variable. Every benchmark sweep
+# defines a worker closure inside its `for threads in ...` loop and starts and
+# joins those threads within the same iteration, so the closure can never see a
+# later value. Binding each one as a default argument would only obscure what
+# is being measured.
+"benchmarks/*" = ["B023"]
+
+[tool.pyright]
+exclude = ["**/__pycache__", ".venv", "dist", "site", "tmp"]
+include = ["openai_embeddings_model", "tests"]
+pythonVersion = "3.11"
+typeCheckingMode = "standard"
 
 [build-system]
 build-backend = "poetry.core.masonry.api"

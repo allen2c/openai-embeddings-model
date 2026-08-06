@@ -22,17 +22,11 @@ fake = Faker()
 class TestBasicUsage:
     """Test basic usage examples from README."""
 
-    def test_basic_sync_usage(
-        self, openai_client: openai.OpenAI, cache: diskcache.Cache
-    ):
+    def test_basic_sync_usage(self, openai_client: openai.OpenAI, cache: diskcache.Cache):
         """Test basic synchronous usage example."""
-        model = OpenAIEmbeddingsModel(
-            model="text-embedding-3-small", openai_client=openai_client
-        )
+        model = OpenAIEmbeddingsModel(model="text-embedding-3-small", openai_client=openai_client)
 
-        response = model.get_embeddings(
-            input="Hello, world!", model_settings=ModelSettings(dimensions=512)
-        )
+        response = model.get_embeddings(input="Hello, world!", model_settings=ModelSettings(dimensions=512))
 
         # Test response structure
         embeddings = response.to_numpy()
@@ -47,9 +41,7 @@ class TestBasicUsage:
     @pytest.mark.asyncio
     async def test_basic_async_usage(self, openai_client_async: openai.AsyncOpenAI):
         """Test basic asynchronous usage example."""
-        model = AsyncOpenAIEmbeddingsModel(
-            model="text-embedding-3-small", openai_client=openai_client_async
-        )
+        model = AsyncOpenAIEmbeddingsModel(model="text-embedding-3-small", openai_client=openai_client_async)
 
         response = await model.get_embeddings(
             input=["Hello, world!", "How are you?"],
@@ -66,13 +58,9 @@ class TestSupportedProviders:
 
     def test_openai_provider(self, openai_client: openai.OpenAI):
         """Test OpenAI provider example."""
-        model = OpenAIEmbeddingsModel(
-            model="text-embedding-3-small", openai_client=openai_client
-        )
+        model = OpenAIEmbeddingsModel(model="text-embedding-3-small", openai_client=openai_client)
 
-        response = model.get_embeddings(
-            input="Test OpenAI provider", model_settings=ModelSettings(dimensions=512)
-        )
+        response = model.get_embeddings(input="Test OpenAI provider", model_settings=ModelSettings(dimensions=512))
 
         assert response.to_numpy().shape == (1, 512)
         assert response.usage.input_tokens > 0
@@ -85,9 +73,7 @@ class TestSupportedProviders:
             api_key="test-gemini-key",
         )
 
-        model = OpenAIEmbeddingsModel(
-            model="text-embedding-004", openai_client=gemini_client
-        )
+        model = OpenAIEmbeddingsModel(model="text-embedding-004", openai_client=gemini_client)
 
         # Test model initialization
         assert model.model == "text-embedding-004"
@@ -105,25 +91,17 @@ class TestSupportedProviders:
                 azure_endpoint="https://your-resource.openai.azure.com/",
             )
 
-            model = OpenAIEmbeddingsModel(
-                model="text-embedding-3-small", openai_client=azure_client
-            )
+            model = OpenAIEmbeddingsModel(model="text-embedding-3-small", openai_client=azure_client)
 
-            response = model.get_embeddings(
-                input="Test Azure client", model_settings=ModelSettings(dimensions=512)
-            )
+            response = model.get_embeddings(input="Test Azure client", model_settings=ModelSettings(dimensions=512))
 
             assert response.to_numpy().shape == (1, 512)
 
     def test_self_hosted_provider(self):
         """Test self-hosted provider example (Ollama)."""
-        ollama_client = openai.OpenAI(
-            base_url="http://localhost:11434/v1", api_key="ollama"
-        )
+        ollama_client = openai.OpenAI(base_url="http://localhost:11434/v1", api_key="ollama")
 
-        model = OpenAIEmbeddingsModel(
-            model="nomic-embed-text", openai_client=ollama_client
-        )
+        model = OpenAIEmbeddingsModel(model="nomic-embed-text", openai_client=ollama_client)
 
         assert model.model == "nomic-embed-text"
         assert model._client == ollama_client
@@ -132,20 +110,14 @@ class TestSupportedProviders:
 class TestAdvancedFeatures:
     """Test advanced features from README."""
 
-    def test_batch_processing(
-        self, openai_client: openai.OpenAI, tmp_cache: diskcache.Cache
-    ):
+    def test_batch_processing(self, openai_client: openai.OpenAI, tmp_cache: diskcache.Cache):
         """Test batch processing examples."""
-        model = OpenAIEmbeddingsModel(
-            model="text-embedding-3-small", openai_client=openai_client, cache=tmp_cache
-        )
+        model = OpenAIEmbeddingsModel(model="text-embedding-3-small", openai_client=openai_client, cache=tmp_cache)
 
         texts = ["Hello, world!", "How are you?", "This is a test"]
 
         # Test batch processing
-        response = model.get_embeddings(
-            input=texts, model_settings=ModelSettings(dimensions=512)
-        )
+        response = model.get_embeddings(input=texts, model_settings=ModelSettings(dimensions=512))
 
         embeddings = response.to_numpy()
         assert embeddings.shape == (3, 512)
@@ -153,9 +125,7 @@ class TestAdvancedFeatures:
 
         # Test generator usage
         chunks = list(
-            model.get_embeddings_generator(
-                input=texts, model_settings=ModelSettings(dimensions=512), chunk_size=2
-            )
+            model.get_embeddings_generator(input=texts, model_settings=ModelSettings(dimensions=512), chunk_size=2)
         )
 
         assert len(chunks) == 2  # 3 texts with chunk_size=2 -> 2 chunks
@@ -174,28 +144,20 @@ class TestAdvancedFeatures:
             )
 
             text = "Test caching"
-            response1 = model.get_embeddings(
-                input=text, model_settings=ModelSettings(dimensions=512)
-            )
+            response1 = model.get_embeddings(input=text, model_settings=ModelSettings(dimensions=512))
             assert response1.usage.cache_hits == 0
 
             # Second call should hit cache
-            response2 = model.get_embeddings(
-                input=text, model_settings=ModelSettings(dimensions=512)
-            )
+            response2 = model.get_embeddings(input=text, model_settings=ModelSettings(dimensions=512))
             assert response2.usage.cache_hits == 1
 
     def test_model_configuration(self, openai_client: openai.OpenAI):
         """Test model configuration examples."""
-        model = OpenAIEmbeddingsModel(
-            model="text-embedding-3-small", openai_client=openai_client
-        )
+        model = OpenAIEmbeddingsModel(model="text-embedding-3-small", openai_client=openai_client)
 
         settings = ModelSettings(dimensions=1024, timeout=30.0)
 
-        response = model.get_embeddings(
-            input="Test configuration", model_settings=settings
-        )
+        response = model.get_embeddings(input="Test configuration", model_settings=settings)
 
         assert response.to_numpy().shape == (1, 1024)
         assert response.usage.input_tokens > 0
@@ -203,9 +165,7 @@ class TestAdvancedFeatures:
     @pytest.mark.asyncio
     async def test_async_generator(self, openai_client_async: openai.AsyncOpenAI):
         """Test async generator usage."""
-        model = AsyncOpenAIEmbeddingsModel(
-            model="text-embedding-3-small", openai_client=openai_client_async
-        )
+        model = AsyncOpenAIEmbeddingsModel(model="text-embedding-3-small", openai_client=openai_client_async)
 
         texts = ["Text 1", "Text 2", "Text 3", "Text 4", "Text 5"]
 
@@ -226,9 +186,7 @@ class TestErrorHandling:
 
     def test_error_handling_patterns(self, openai_client: openai.OpenAI):
         """Test error handling as shown in README."""
-        model = OpenAIEmbeddingsModel(
-            model="text-embedding-3-small", openai_client=openai_client
-        )
+        model = OpenAIEmbeddingsModel(model="text-embedding-3-small", openai_client=openai_client)
 
         # Test ValueError for invalid input
         with pytest.raises(ValueError):
@@ -255,13 +213,9 @@ class TestErrorHandling:
 class TestResponseUsage:
     """Test response usage patterns from README."""
 
-    def test_response_methods(
-        self, openai_client: openai.OpenAI, tmp_cache: diskcache.Cache
-    ):
+    def test_response_methods(self, openai_client: openai.OpenAI, tmp_cache: diskcache.Cache):
         """Test all response methods and properties."""
-        model = OpenAIEmbeddingsModel(
-            model="text-embedding-3-small", openai_client=openai_client, cache=tmp_cache
-        )
+        model = OpenAIEmbeddingsModel(model="text-embedding-3-small", openai_client=openai_client, cache=tmp_cache)
 
         response = model.get_embeddings(
             input=["First text", "Second text"],
@@ -294,27 +248,19 @@ class TestResponseUsage:
 class TestApiReference:
     """Test API reference examples from README."""
 
-    def test_model_classes(
-        self, openai_client: openai.OpenAI, openai_client_async: openai.AsyncOpenAI
-    ):
+    def test_model_classes(self, openai_client: openai.OpenAI, openai_client_async: openai.AsyncOpenAI):
         """Test model classes mentioned in API reference."""
         # Test synchronous model
-        sync_model = OpenAIEmbeddingsModel(
-            model="text-embedding-3-small", openai_client=openai_client
-        )
+        sync_model = OpenAIEmbeddingsModel(model="text-embedding-3-small", openai_client=openai_client)
         assert sync_model is not None
 
         # Test asynchronous model
-        async_model = AsyncOpenAIEmbeddingsModel(
-            model="text-embedding-3-small", openai_client=openai_client_async
-        )
+        async_model = AsyncOpenAIEmbeddingsModel(model="text-embedding-3-small", openai_client=openai_client_async)
         assert async_model is not None
 
     def test_model_settings_configuration(self, openai_client: openai.OpenAI):
         """Test ModelSettings configuration options."""
-        model = OpenAIEmbeddingsModel(
-            model="text-embedding-3-small", openai_client=openai_client
-        )
+        model = OpenAIEmbeddingsModel(model="text-embedding-3-small", openai_client=openai_client)
 
         # Test default settings
         default_settings = ModelSettings()
@@ -327,20 +273,14 @@ class TestApiReference:
         assert custom_settings.timeout == 30.0
 
         # Test with custom settings
-        response = model.get_embeddings(
-            input="Test settings", model_settings=custom_settings
-        )
+        response = model.get_embeddings(input="Test settings", model_settings=custom_settings)
         assert response.to_numpy().shape == (1, 1024)
 
     def test_response_properties(self, openai_client: openai.OpenAI):
         """Test ModelResponse properties from API reference."""
-        model = OpenAIEmbeddingsModel(
-            model="text-embedding-3-small", openai_client=openai_client
-        )
+        model = OpenAIEmbeddingsModel(model="text-embedding-3-small", openai_client=openai_client)
 
-        response = model.get_embeddings(
-            input="Test response", model_settings=ModelSettings(dimensions=512)
-        )
+        response = model.get_embeddings(input="Test response", model_settings=ModelSettings(dimensions=512))
 
         # Test response methods
         numpy_result = response.to_numpy()

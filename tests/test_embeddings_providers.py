@@ -9,9 +9,7 @@ fake = Faker()
 
 
 @pytest.mark.asyncio
-async def test_openai_embeddings(
-    openai_client_async: openai.AsyncOpenAI, cache: diskcache.Cache
-):
+async def test_openai_embeddings(openai_client_async: openai.AsyncOpenAI, cache: diskcache.Cache):
     dim = 512
     sentence = fake.sentence()
 
@@ -37,9 +35,7 @@ async def test_openai_embeddings(
 
 
 @pytest.mark.asyncio
-async def test_gemini_embeddings(
-    gemini_client_async: openai.AsyncOpenAI, cache: diskcache.Cache
-):
+async def test_gemini_embeddings(gemini_client_async: openai.AsyncOpenAI, cache: diskcache.Cache):
     dim = 512
     sentence = fake.sentence()
 
