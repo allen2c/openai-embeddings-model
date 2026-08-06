@@ -54,6 +54,8 @@ make format-all                               # isort + black
   truncation points are approximate unless the caller passes `encoding=`.
 - `validate_cached_embedding` can only check dimensionality when
   `model_settings.dimensions` is set. Providers configured through
-  `extra_body` alone get weaker validation.
-- `diskcache` is not fork-safe. Constructing a model before `os.fork()` (a
-  gunicorn `preload_app` setup) can wedge the child on its first cache write.
+  `extra_body` alone get weaker validation. Not fixable from here — nothing
+  in the request states the expected size.
+- Models register with `os.register_at_fork` so a forked child rebuilds its
+  thread pool and drops the inherited sqlite connection. Anything else added
+  to a model that does not survive a fork belongs in `_reset_after_fork`.

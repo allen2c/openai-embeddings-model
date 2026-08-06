@@ -75,6 +75,14 @@ the cache key layout changed.
 - **Non-OpenAI models warn once** that token counts, and therefore truncation
   points, are approximate, rather than silently using gpt-4o's tokenizer.
   A non-`str` model no longer raises an uncaught `AttributeError`.
+- **Forked children rebuild what the fork invalidated.** Models register an
+  `os.register_at_fork` hook that recreates the thread pool, whose workers do
+  not survive a fork, and drops the inherited sqlite connection. Constructing
+  a model before forking — the gunicorn `preload_app` shape — previously left
+  the child submitting work to a pool with no threads.
+- **`ModelResponse` is frozen.** Its decoded array is cached on first access
+  and never invalidated, so reassigning `output` left `to_numpy()` returning
+  vectors for text the response no longer held.
 
 ### Added
 

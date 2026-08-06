@@ -7,9 +7,11 @@ import hashlib
 import json
 import logging
 import math
+import os
 import pathlib
 import time
 import typing
+import weakref
 
 import diskcache
 import numpy as np
@@ -48,6 +50,29 @@ CACHE_KEY_VERSION = "v2"
 # Model names already warned about for approximate token counting, so the
 # warning fires once per model rather than once per instance.
 _warned_tokenizers: set[str] = set()
+
+# Live models, so a forked child can rebuild what the fork invalidated.
+_fork_sensitive_models: "weakref.WeakSet" = weakref.WeakSet()
+
+
+def _reset_all_after_fork() -> None:
+    """Rebuild per-process resources in a forked child.
+
+    fork() does not carry threads into the child, so it inherits an executor
+    whose workers no longer exist and a diskcache sqlite connection that may
+    have been mid-transaction in the parent. Left alone, the child's first
+    cache write blocks on a lock nothing will ever release — the classic
+    gunicorn `preload_app` hang.
+    """
+    for model in list(_fork_sensitive_models):
+        try:
+            model._reset_after_fork()
+        except Exception:  # a child that cannot reset must not die here
+            logger.debug("Post-fork reset failed", exc_info=True)
+
+
+if hasattr(os, "register_at_fork"):  # not available on Windows
+    os.register_at_fork(after_in_child=_reset_all_after_fork)
 
 
 def cache_scope_digest(
@@ -340,6 +365,11 @@ class Usage(pydantic.BaseModel):
 class ModelResponse(pydantic.BaseModel):
     """Response from embedding model with lazy decoding."""
 
+    # Frozen because the decoded array is cached on first access and never
+    # invalidated; a mutable `output` would leave `to_numpy()` silently
+    # returning vectors for text the response no longer holds.
+    model_config = pydantic.ConfigDict(frozen=True)
+
     output: list[typing.Text]
     usage: Usage
 
@@ -518,9 +548,20 @@ class _OpenAIEmbeddingsModelBase:
         # different base_url is a different model.
         self._provider = str(getattr(openai_client, "base_url", "") or "")
 
+        _fork_sensitive_models.add(self)
+
         logger.debug(
             f"Initialized {self.__class__.__name__} with model: {self._model_str}"
         )
+
+    def _reset_after_fork(self) -> None:
+        """Drop resources a forked child inherited but cannot use.
+
+        The sqlite connection diskcache opened in the parent is not valid in
+        the child; closing it makes diskcache open a fresh one on next use.
+        """
+        if self._cache is not None:
+            self._cache.close()
 
     def _handle_token_limits(
         self, texts: typing.List[str], token_counts: typing.List[int]
@@ -988,10 +1029,23 @@ class AsyncOpenAIEmbeddingsModel(_OpenAIEmbeddingsModelBase):
                 f"max_concurrent_batches must be >= 1, got {max_concurrent_batches}"
             )
         self._max_concurrent_batches = max_concurrent_batches
-        self._executor = concurrent.futures.ThreadPoolExecutor(
-            max_workers=executor_max_workers,
+        self._executor_max_workers = executor_max_workers
+        self._executor = self._new_executor()
+
+    def _new_executor(self) -> concurrent.futures.ThreadPoolExecutor:
+        return concurrent.futures.ThreadPoolExecutor(
+            max_workers=self._executor_max_workers,
             thread_name_prefix=f"openai-emb-async-{id(self)}",
         )
+
+    def _reset_after_fork(self) -> None:
+        """Rebuild the thread pool alongside the base class's cache reset.
+
+        The child inherits an executor whose worker threads did not survive
+        the fork, so anything submitted to it would never run.
+        """
+        super()._reset_after_fork()
+        self._executor = self._new_executor()
 
     async def aclose(self) -> None:
         """Shut down the dedicated cache-I/O thread pool.

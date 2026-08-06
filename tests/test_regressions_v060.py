@@ -6,12 +6,17 @@ is replaced with a fake. Each test fails on 0.5.2 and passes on 0.6.0.
 """
 
 import asyncio
+import os
+import signal
 import threading
+import time
+import traceback
 import typing
 
 import diskcache
 import httpx
 import openai
+import pydantic
 import pytest
 import tiktoken
 from openai.types import CreateEmbeddingResponse, Embedding
@@ -20,8 +25,10 @@ from openai.types.create_embedding_response import Usage as OpenAIUsage
 from openai_embeddings_model import (
     CACHE_KEY_VERSION,
     AsyncOpenAIEmbeddingsModel,
+    ModelResponse,
     ModelSettings,
     OpenAIEmbeddingsModel,
+    Usage,
     cache_scope_digest,
     deduplicate_texts,
     generate_cache_key,
@@ -712,3 +719,103 @@ async def test_output_order_survives_concurrent_batches():
 def test_typing_helper_is_exported():
     assert callable(deduplicate_texts)
     assert isinstance(typing.get_type_hints(deduplicate_texts), dict)
+
+
+# --- ModelResponse immutability (was: cached array went stale) ---
+
+
+def test_model_response_is_frozen():
+    resp = ModelResponse(output=[py_float_list_to_b64_np32_array(DIM3)], usage=Usage())
+    resp.to_numpy()  # populate the cached decode
+
+    with pytest.raises(pydantic.ValidationError):
+        resp.output = [py_float_list_to_b64_np32_array([9.0, 9.0, 9.0])]
+
+
+def test_frozen_does_not_break_the_cached_decode():
+    resp = ModelResponse(output=[py_float_list_to_b64_np32_array(DIM3)], usage=Usage())
+
+    first = resp.to_numpy()
+    second = resp.to_numpy()
+
+    assert first is not second, "each call returns its own writable copy"
+    assert (first == second).all()
+
+
+# --- fork safety (was: child wedged on an inherited sqlite lock) ---
+
+
+def run_in_fork(child_body, timeout: float = 10.0) -> int:
+    """Run `child_body` in a forked child, returning its exit code.
+
+    Times out rather than hanging the suite: before the fix the child blocks
+    forever on resources the fork invalidated, and a hung test tells you far
+    less than a failed one.
+    """
+    pid = os.fork()
+    if pid == 0:  # child
+        code = 1
+        try:
+            child_body()
+            code = 0
+        except BaseException:
+            traceback.print_exc()
+        finally:
+            os._exit(code)  # skip pytest/atexit teardown in the child
+
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        done, status = os.waitpid(pid, os.WNOHANG)
+        if done:
+            return os.waitstatus_to_exitcode(status)
+        time.sleep(0.05)
+
+    os.kill(pid, signal.SIGKILL)
+    os.waitpid(pid, 0)
+    raise AssertionError(f"forked child did not finish within {timeout}s")
+
+
+@pytest.mark.skipif(not hasattr(os, "fork"), reason="fork() is POSIX only")
+def test_forked_child_gets_a_working_executor(tmp_path):
+    """The gunicorn preload_app shape: build the model, then fork."""
+    cache = diskcache.Cache(str(tmp_path / "c"))
+
+    async def create(input, **kwargs):
+        return build_response(len(input))
+
+    model = async_model(create, cache=cache)
+    parent_executor_id = id(model._executor)
+    # Touch the cache so the parent holds an open sqlite connection at fork.
+    cache.set("warm", "up")
+
+    def child():
+        assert id(model._executor) != parent_executor_id, "executor not rebuilt"
+        # Proves the pool has live workers: the parent's did not survive fork.
+        assert model._executor.submit(lambda: 21 * 2).result(timeout=5) == 42
+        assert asyncio.run(
+            model.get_embeddings(["hi"], model_settings=ModelSettings(dimensions=3))
+        ).to_numpy().shape == (1, 3)
+
+    assert run_in_fork(child) == 0
+
+
+@pytest.mark.skipif(not hasattr(os, "fork"), reason="fork() is POSIX only")
+def test_forked_child_can_still_use_the_cache(tmp_path):
+    cache = diskcache.Cache(str(tmp_path / "c"))
+    calls: list = []
+    model = sync_model(recording_create(calls), cache=cache)
+    settings = ModelSettings(dimensions=3)
+
+    model.get_embeddings(["parent text"], model_settings=settings)
+
+    def child():
+        # Reads a parent-written entry and writes a new one of its own.
+        assert (
+            model.get_embeddings(
+                ["parent text"], model_settings=settings
+            ).usage.cache_hits
+            == 1
+        )
+        model.get_embeddings(["child text"], model_settings=settings)
+
+    assert run_in_fork(child) == 0
