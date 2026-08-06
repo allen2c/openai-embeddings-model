@@ -910,3 +910,87 @@ async def test_a_billed_batch_is_cached_even_if_a_sibling_fails(tmp_path):
         await model.aclose()
 
     assert cache_len(cache) == 1, "the successful batch was billed and must be persisted"
+
+
+# --- performance work (was: per-text scope digests, per-entry cache writes) ---
+
+
+def test_scope_digest_is_computed_once_per_request(tmp_path, monkeypatch):
+    """Key generation re-digested provider and extra_body for every text.
+
+    The digest is a json.dumps plus a sha256 over values fixed for the whole
+    request, and it was two thirds of key generation on a large call.
+    """
+    import openai_embeddings_model as oem
+
+    calls: list[tuple] = []
+    real = oem.cache_scope_digest
+
+    def counting(provider=None, extra_body=None):
+        calls.append((provider, extra_body))
+        return real(provider, extra_body)
+
+    monkeypatch.setattr(oem, "cache_scope_digest", counting)
+
+    model = sync_model(recording_create([]), cache=diskcache.Cache(str(tmp_path / "c")))
+    model.get_embeddings([f"text {i}" for i in range(64)], ModelSettings(dimensions=3))
+
+    assert len(calls) == 1, f"digested the request scope {len(calls)} times for 64 texts"
+
+
+def test_batched_keys_match_generate_cache_key_exactly(tmp_path):
+    """Byte-identical keys, or every user's cache is silently invalidated."""
+    model = sync_model(recording_create([]), base_url="http://provider:1", cache=diskcache.Cache(str(tmp_path / "c")))
+    settings = ModelSettings(dimensions=512, extra_body={"b": 1, "a": [2, 3]})
+    texts = ["alpha", "beta", "gamma \ud800"]
+
+    batched = model._cache_keys_for(texts, settings)
+    one_by_one = [
+        generate_cache_key(
+            model=MODEL,
+            dimensions=512,
+            text=text,
+            provider="http://provider:1",
+            extra_body={"b": 1, "a": [2, 3]},
+        )
+        for text in texts
+    ]
+
+    assert batched == one_by_one
+
+
+def test_a_batch_of_cache_writes_is_one_transaction(tmp_path):
+    """Writes go through `transact()`, so the batch commits or rolls back whole.
+
+    The speed is the point; the atomicity is the price, and it is asserted here
+    so nobody has to rediscover it. A failure mid-batch costs re-embedding that
+    batch, not just its tail — the caller still receives every vector.
+    """
+    cache = diskcache.Cache(str(tmp_path / "c"))
+    model = sync_model(recording_create([]), cache=cache)
+
+    real_set = cache.set
+    seen: list[str] = []
+
+    def exploding_set(key, value, *args, **kwargs):
+        seen.append(key)
+        if len(seen) == 5:
+            raise RuntimeError("disk went away")
+        return real_set(key, value, *args, **kwargs)
+
+    cache.set = exploding_set  # type: ignore[method-assign]
+    with pytest.raises(RuntimeError):
+        model.get_embeddings([f"text {i}" for i in range(10)], ModelSettings(dimensions=3))
+    cache.set = real_set  # type: ignore[method-assign]
+
+    assert cache_len(cache) == 0, "a failed batch must not leave a committed prefix behind"
+
+
+def test_async_executor_defaults_to_a_single_worker(tmp_path):
+    """Everything the pool runs is GIL-bound, so extra workers only contend."""
+    model = async_model(recording_create([]), cache=diskcache.Cache(str(tmp_path / "c")))
+
+    assert model._executor._max_workers == 1
+
+    opted_out = async_model(recording_create([]), executor_max_workers=None)
+    assert opted_out._executor._max_workers > 1, "None must still mean the stdlib default"
