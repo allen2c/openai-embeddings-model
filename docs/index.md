@@ -38,16 +38,24 @@ pip install openai-embeddings-model
 
     async def main():
         client = openai.AsyncOpenAI(api_key="your-api-key")
-        model = AsyncOpenAIEmbeddingsModel(model="text-embedding-3-small", openai_client=client)
-
-        response = await model.get_embeddings(
-            input=["Hello, world!", "How are you?"],
-            model_settings=ModelSettings(dimensions=512)
-        )
-        print(response.to_numpy().shape)  # (2, 512)
+        async with AsyncOpenAIEmbeddingsModel(
+            model="text-embedding-3-small", openai_client=client
+        ) as model:
+            response = await model.get_embeddings(
+                input=["Hello, world!", "How are you?"],
+                model_settings=ModelSettings(dimensions=512)
+            )
+            print(response.to_numpy().shape)  # (2, 512)
 
     asyncio.run(main())
     ```
+
+    !!! tip "Release the thread pool"
+
+        `AsyncOpenAIEmbeddingsModel` owns a `ThreadPoolExecutor` for cache I/O.
+        Use it as an async context manager, or call `await model.aclose()`, so
+        the worker threads are released deterministically rather than at
+        garbage-collection time.
 
 ---
 
@@ -160,6 +168,20 @@ model = OpenAIEmbeddingsModel(
 )
 ```
 
+Entries are validated on read. Anything that does not decode into an embedding
+of the expected shape is discarded and re-fetched, so a cache directory shared
+with another tool cannot feed you a malformed vector.
+
+!!! warning "One cache directory per provider"
+
+    The cache key is derived from the model name, `dimensions`, and the text —
+    **not** from the client's `base_url` or from `extra_body`. Two models that
+    share a cache directory and a model name will therefore share vectors even
+    if they point at different providers, and requests that differ only in
+    `extra_body` (such as Voyage's `output_dimension`) will collide.
+
+    Give each provider its own cache directory.
+
 ---
 
 ## API Reference
@@ -189,22 +211,24 @@ model = OpenAIEmbeddingsModel(
 | `get_embeddings(input, model_settings)`                           | `ModelResponse`            | Embed one or more texts           |
 | `get_embeddings_generator(input, model_settings, chunk_size=100)` | `Generator[ModelResponse]` | Stream results for large datasets |
 | `get_similarity(query, documents, model_settings)`                | `SimilarityResponse`       | Rank documents by query relevance |
+| `aclose()`                                                        | `None`                     | Async model only — release the cache-I/O thread pool |
 
 ### ModelSettings
 
-| Parameter    | Type            | Default | Description               |
-|--------------|-----------------|---------|---------------------------|
-| `dimensions` | `int \| None`   | `None`  | Custom output dimensions  |
-| `timeout`    | `float \| None` | `None`  | Request timeout (seconds) |
+| Parameter    | Type            | Default | Description                                        |
+|--------------|-----------------|---------|----------------------------------------------------|
+| `dimensions` | `int \| None`   | `None`  | Custom output dimensions                           |
+| `timeout`    | `float \| None` | `None`  | Request timeout (seconds)                          |
+| `extra_body` | `dict \| None`  | `None`  | Provider-specific parameters merged into the request |
 
 ### Response Types
 
 **`ModelResponse`**
 
-| Attribute / Method   | Description                               |
-|----------------------|-------------------------------------------|
-| `to_numpy()`         | `NDArray[np.float32]` — shape `(n, dims)` |
-| `to_python()`        | `List[List[float]]`                       |
+| Attribute / Method   | Description                                                  |
+|----------------------|--------------------------------------------------------------|
+| `to_numpy()`         | `NDArray[np.float32]` — shape `(n, dims)`, a writable copy    |
+| `to_python()`        | `List[List[float]]`                                          |
 | `usage.input_tokens` | Tokens from input texts                   |
 | `usage.total_tokens` | Total tokens billed                       |
 | `usage.cache_hits`   | Number of cache hits                      |
